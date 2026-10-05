@@ -1,0 +1,3 @@
+export type TopicKind = 'telemetry' | 'state' | 'command' | 'availability' | 'config' | 'capability' | 'ota';
+export const topic = (homeId: string, roomId: string, deviceId: string, kind: TopicKind) => `smarthome/${homeId}/${roomId}/${deviceId}/${kind}`;
+export function parseTopic(value: string) { const parts = value.split('/'); if (parts.length !== 5 || parts[0] !== 'smarthome') return null; const [_, homeId, roomId, deviceId, kind] = parts; if (!['telemetry','state','command','availability','config','capability','ota'].includes(kind)) return null; return { homeId, roomId, deviceId, kind: kind as TopicKind }; }

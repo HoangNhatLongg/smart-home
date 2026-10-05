@@ -1,0 +1,196 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+model User {
+ id String @id @default(uuid()) @db.Uuid
+ email String @unique
+ passwordHash String @map("password_hash")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ homes Home[]
+ @@map("users")
+}
+model Home {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @db.Uuid @map("owner_id")
+ name String
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ owner User @relation(fields:[ownerId],references:[id])
+ rooms Room[]
+ automations AutomationRule[]
+ @@map("homes")
+}
+model Room {
+ id String @id @default(uuid()) @db.Uuid
+ homeId String @db.Uuid @map("home_id")
+ name String
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ home Home @relation(fields:[homeId],references:[id],onDelete:Cascade)
+ devices Device[]
+ @@map("rooms")
+}
+model Device {
+ id String @id @default(uuid()) @db.Uuid
+ roomId String @db.Uuid @map("room_id")
+ deviceId String @unique @map("device_id")
+ name String
+ firmwareVersion String? @map("firmware_version")
+ status String
+ lastSeenAt DateTime? @map("last_seen_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ room Room @relation(fields:[roomId],references:[id],onDelete:Cascade)
+ capabilities DeviceCapability[]
+ configuration DeviceConfiguration?
+ telemetry Telemetry[]
+ states DeviceState[]
+ stateHistory StateHistory[]
+ commands Command[]
+ otaJobs OtaJob[]
+ @@map("devices")
+}
+model CapabilityRegistry {
+ id String @id @default(uuid()) @db.Uuid
+ code String @unique
+ name String
+ type String
+ dataType String @map("data_type")
+ unit String?
+ description String?
+ createdAt DateTime @default(now()) @map("created_at")
+ deviceCapabilities DeviceCapability[]
+ @@map("capability_registry")
+}
+model DeviceCapability {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @db.Uuid @map("device_id")
+ capabilityId String @db.Uuid @map("capability_id")
+ instanceCode String @map("instance_code")
+ name String?
+ config Json?
+ createdAt DateTime @default(now()) @map("created_at")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ capability CapabilityRegistry @relation(fields:[capabilityId],references:[id])
+ telemetry Telemetry[]
+ states DeviceState[]
+ stateHistory StateHistory[]
+ @@unique([deviceId,instanceCode])
+ @@map("device_capabilities")
+}
+model DeviceConfiguration {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @unique @db.Uuid @map("device_id")
+ configVersion Int @map("config_version")
+ desiredConfig Json @map("desired_config")
+ appliedConfig Json? @map("applied_config")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ appliedAt DateTime? @map("applied_at")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ @@map("device_configurations")
+}
+model Telemetry {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @db.Uuid @map("device_id")
+ capabilityId String? @db.Uuid @map("capability_id")
+ data Json
+ recordedAt DateTime @map("recorded_at")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ capability DeviceCapability? @relation(fields:[capabilityId],references:[id])
+ @@index([deviceId,recordedAt(sort:Desc)])
+ @@index([recordedAt(sort:Desc)])
+ @@map("telemetry")
+}
+model DeviceState {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @db.Uuid @map("device_id")
+ capabilityId String? @db.Uuid @map("capability_id")
+ state Json
+ updatedAt DateTime @updatedAt @map("updated_at")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ capability DeviceCapability? @relation(fields:[capabilityId],references:[id])
+ @@unique([deviceId,capabilityId])
+ @@map("device_states")
+}
+model StateHistory {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @db.Uuid @map("device_id")
+ capabilityId String? @db.Uuid @map("capability_id")
+ commandId String? @db.Uuid @map("command_id")
+ state Json
+ recordedAt DateTime @map("recorded_at")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ capability DeviceCapability? @relation(fields:[capabilityId],references:[id])
+ command Command? @relation(fields:[commandId],references:[id])
+ @@index([deviceId,recordedAt(sort:Desc)])
+ @@map("state_history")
+}
+model Command {
+ id String @id @default(uuid()) @db.Uuid
+ commandId String @unique @map("command_id")
+ deviceId String @db.Uuid @map("device_id")
+ commandType String @map("command_type")
+ payload Json
+ status String
+ retryCount Int @default(0) @map("retry_count")
+ createdAt DateTime @default(now()) @map("created_at")
+ sentAt DateTime? @map("sent_at")
+ completedAt DateTime? @map("completed_at")
+ errorMessage String? @map("error_message")
+ device Device @relation(fields:[deviceId],references:[id],onDelete:Cascade)
+ history StateHistory[]
+ @@map("commands")
+}
+model AutomationRule {
+ id String @id @default(uuid()) @db.Uuid
+ homeId String @db.Uuid @map("home_id")
+ name String
+ enabled Boolean @default(true)
+ schedule Json
+ action Json
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ home Home @relation(fields:[homeId],references:[id],onDelete:Cascade)
+ logs AutomationLog[]
+ @@map("automation_rules")
+}
+model AutomationLog {
+ id String @id @default(uuid()) @db.Uuid
+ automationRuleId String @db.Uuid @map("automation_rule_id")
+ commandId String? @db.Uuid @map("command_id")
+ executionStatus String @map("execution_status")
+ executedAt DateTime @default(now()) @map("executed_at")
+ errorMessage String? @map("error_message")
+ rule AutomationRule @relation(fields:[automationRuleId],references:[id],onDelete:Cascade)
+ @@map("automation_logs")
+}
+model FirmwareVersion {
+ id String @id @default(uuid()) @db.Uuid
+ version String @unique
+ firmwareUrl String @map("firmware_url")
+ checksum String
+ fileSize BigInt? @map("file_size")
+ releaseNote String? @map("release_note")
+ createdAt DateTime @default(now()) @map("created_at")
+ otaJobs OtaJob[]
+ @@map("firmware_versions")
+}
+model OtaJob {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @db.Uuid @map("device_id")
+ firmwareVersionId String @db.Uuid @map("firmware_version_id")
+ status String
+ progress Int @default(0)
+ startedAt DateTime? @map("started_at")
+ completedAt DateTime? @map("completed_at")
+ errorMessage String? @map("error_message")
+ createdAt DateTime @default(now()) @map("created_at")
+ device Device @relation(fields:[deviceId],references:[id])
+ firmwareVersion FirmwareVersion @relation(fields:[firmwareVersionId],references:[id])
+ @@map("ota_jobs")
+}

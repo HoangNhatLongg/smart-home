@@ -1,0 +1,146 @@
+# Generic IoT Node configuration.
+#
+# This is the single place where device identity, hardware (GPIO) mapping and
+# network settings are defined. Nothing in the C sources hard-codes GPIO numbers
+# or identities: every module reads them from here through sm_device / sm_hardware.
+#
+# Run `idf.py menuconfig` and set:
+#   Generic IoT Node -> Device Identity / Hardware / Wi-Fi / MQTT / Time / OTA
+#
+# sdkconfig is git-ignored because it can contain Wi-Fi/MQTT secrets.
+
+menu "Generic IoT Node"
+
+    menu "Device Identity"
+        config NODE_DEVICE_ID
+            string "device_id (MQTT/Backend logical identifier)"
+            default "esp32-c3-001"
+            help
+                Must match `devices.device_id` on the Backend.
+                Example: esp32-c3-001
+
+        config NODE_HOME_ID
+            string "home_id"
+            default "home01"
+            help
+                Must match the Backend Home resource id.
+
+        config NODE_ROOM_ID
+            string "room_id"
+            default "livingroom"
+            help
+                Must match the Backend Room resource id.
+
+        config NODE_FIRMWARE_VERSION
+            string "FIRMWARE_VERSION (semver, published in capability message)"
+            default "1.0.0"
+    endmenu
+
+    menu "Hardware Configuration"
+        config NODE_DHT11_ENABLED
+            bool "DHT11 temperature/humidity sensor present"
+            default y
+
+        config NODE_DHT11_GPIO
+            depends on NODE_DHT11_ENABLED
+            int "DHT11_GPIO (DATA pin)"
+            default 4
+            range 0 21
+            help
+                ESP32-C3 GPIO used for the single-wire DHT11 DATA line.
+                Needs a 4.7k-10k pull-up to 3V3 (most DHT11 breakout boards have it).
+
+        config NODE_RELAY_COUNT
+            int "Number of relay instances on this node"
+            default 1
+            range 0 2
+            help
+                0 = sensor only node, 1 = one relay, 2 = two relays.
+                Relay instance codes are relay_1 .. relay_N.
+
+        config NODE_RELAY_1_GPIO
+            depends on NODE_RELAY_COUNT >= 1
+            int "RELAY_1_GPIO"
+            default 0
+            range 0 21
+
+        config NODE_RELAY_2_GPIO
+            depends on NODE_RELAY_COUNT >= 2
+            int "RELAY_2_GPIO"
+            default 1
+            range 0 21
+
+        config NODE_RELAY_ACTIVE_HIGH
+            bool "Relay module is active HIGH"
+            default y
+            help
+                Most relay boards are active LOW (relay ON = GPIO low).
+    endmenu
+
+    menu "Telemetry"
+        config NODE_TELEMETRY_INTERVAL
+            int "Default telemetry interval (seconds)"
+            default 30
+            range 5 3600
+            help
+                MQTT_SPEC.md default interval. Can be changed at runtime by a
+                `config` message (telemetry_interval key).
+    endmenu
+
+    menu "Wi-Fi"
+        config NODE_WIFI_SSID
+            string "WiFi SSID"
+            default ""
+
+        config NODE_WIFI_PASSWORD
+            string "WiFi password"
+            default ""
+
+        config NODE_WIFI_MAX_RETRY
+            int "WiFi reconnect backoff base (seconds)"
+            default 5
+            range 1 60
+    endmenu
+
+    menu "MQTT"
+        config NODE_MQTT_BROKER_URI
+            string "MQTT broker URI (EMQX)"
+            default "mqtt://192.168.1.10:1883"
+            help
+                Examples: mqtt://192.168.1.10:1883 , mqtts://mqtt.example.com:8883
+
+        config NODE_MQTT_USERNAME
+            string "MQTT username"
+            default ""
+
+        config NODE_MQTT_PASSWORD
+            string "MQTT password"
+            default ""
+
+        config NODE_MQTT_KEEPALIVE
+            int "MQTT keepalive (seconds)"
+            default 60
+            range 10 3600
+    endmenu
+
+    menu "Time"
+        config NODE_SNTP_SERVER
+            string "SNTP server (empty = no time sync, timestamps stay at epoch)"
+            default "pool.ntp.org"
+
+        config NODE_TIME_SYNC_WAIT_MS
+            int "Wait for first time sync before telemetry (ms)"
+            default 15000
+            range 0 60000
+    endmenu
+
+    menu "OTA"
+        config NODE_OTA_ALLOW_HTTP
+            bool "Allow plain HTTP firmware URLs (lab use only)"
+            default n
+            help
+                MQTT_SPEC.md firmware_url is https. Keep this disabled outside
+                of a trusted lab network.
+    endmenu
+
+endmenu

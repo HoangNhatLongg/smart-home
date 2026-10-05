@@ -1,0 +1,11 @@
+backend/node_modules/
+frontend/node_modules/
+
+backend/.next/
+frontend/.next/
+
+node_modules/
+.next/
+
+.env
+.env.local
