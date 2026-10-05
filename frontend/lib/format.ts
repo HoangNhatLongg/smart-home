@@ -66,6 +66,15 @@ export function formatRelayState(value: boolean | null | undefined): string {
   return value ? "Bật" : "Tắt";
 }
 
+/**
+ * Display value for a recorded state. Booleans read as Bật/Tắt rather than the
+ * raw ON/OFF so the history table matches the relay switches.
+ */
+export function formatHistoryValue(value: unknown): string {
+  if (typeof value === "boolean") return formatRelayState(value);
+  return formatStateValue(value);
+}
+
 export const deviceStatusLabel = (status: DeviceStatus): string => {
   switch (status) {
     case "online":

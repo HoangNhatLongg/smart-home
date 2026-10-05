@@ -89,8 +89,12 @@ menu "Generic IoT Node"
 
     menu "Wi-Fi"
         config NODE_WIFI_SSID
-            string "WiFi SSID"
+            string "WiFi SSID (empty = configure from phone)"
             default ""
+            help
+                Credentials entered in the phone provisioning portal are stored
+                in NVS and always win. Leave this empty to let a phone configure
+                the node over its own access point after flashing.
 
         config NODE_WIFI_PASSWORD
             string "WiFi password"
@@ -100,6 +104,27 @@ menu "Generic IoT Node"
             int "WiFi reconnect backoff base (seconds)"
             default 5
             range 1 60
+
+        config NODE_PROVISION_ENABLED
+            bool "Open provisioning access point when no Wi-Fi is stored"
+            default y
+            help
+                When NVS has no Wi-Fi credentials the node starts its own access
+                point (SoftAP) and serves a web form at http://192.168.4.1.
+                The phone joins that network, submits SSID/password, and the node
+                stores them and reboots into station mode.
+
+        config NODE_PROVISION_AP_PASSWORD
+            string "Provisioning access point password (min 8 chars, empty = open)"
+            default "smarthome123"
+            help
+                This is the password of the temporary access point the node
+                creates for setup, not the home Wi-Fi password.
+
+        config NODE_PROVISION_PORT
+            int "Provisioning web server port"
+            default 80
+            range 1 65535
     endmenu
 
     menu "MQTT"

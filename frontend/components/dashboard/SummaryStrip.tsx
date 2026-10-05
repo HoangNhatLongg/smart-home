@@ -1,4 +1,5 @@
 import { formatHumidity, formatTemperature } from "@/lib/format";
+import { House, Cpu, MapPin, Thermometer } from "lucide-react";
 
 export interface SummaryStripProps {
   homeName: string | null;
@@ -11,8 +12,7 @@ export interface SummaryStripProps {
 }
 
 /**
- * One horizontal band instead of a row of stat cards. Values are separated by
- * hairlines so the numbers read as a single summary, not five widgets.
+ * Compact, information-first metrics sourced from the current device tree.
  */
 export function SummaryStrip({
   homeName,
@@ -24,26 +24,27 @@ export function SummaryStrip({
   children,
 }: SummaryStripProps) {
   const cells = [
-    { label: "Thiết bị hoạt động", value: `${online}/${deviceCount}` },
-    { label: "Phòng", value: String(roomCount) },
-    { label: "Nhiệt độ trung bình", value: formatTemperature(averageTemperature) },
-    { label: "Độ ẩm trung bình", value: formatHumidity(averageHumidity) },
+    { label: "Ngôi nhà", value: homeName ? "1" : "0", detail: homeName ?? "Chưa thiết lập", icon: House, tone: "bg-blue-50 text-blue-700" },
+    { label: "Phòng", value: String(roomCount), detail: roomCount === 1 ? "1 phòng đã tạo" : `${roomCount} phòng đã tạo`, icon: MapPin, tone: "bg-violet-50 text-violet-700" },
+    { label: "Thiết bị", value: String(deviceCount), detail: `${online} đang trực tuyến`, icon: Cpu, tone: "bg-emerald-50 text-emerald-700" },
+    { label: "Môi trường", value: formatTemperature(averageTemperature), detail: `Độ ẩm ${formatHumidity(averageHumidity)}`, icon: Thermometer, tone: "bg-amber-50 text-amber-700" },
   ];
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface px-4 py-3.5 sm:flex-row sm:items-center sm:gap-0">
-      <p className="min-w-0 shrink-0 pr-4 text-sm font-semibold text-ink sm:w-44">
-        {homeName ?? "Chưa có nhà"}
-      </p>
-      <dl className="grid flex-1 grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+    <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {cells.map((cell) => (
-          <div key={cell.label} className="px-2 py-1.5 sm:px-4">
-            <dt className="text-xs text-ink-subtle">{cell.label}</dt>
-            <dd className="mt-0.5 text-sm font-semibold text-ink">{cell.value}</dd>
-          </div>
+          <article key={cell.label} className="flex min-w-0 items-start gap-3 rounded-lg border border-line bg-surface p-4">
+            <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${cell.tone}`}><cell.icon size={19} strokeWidth={1.8} aria-hidden /></span>
+            <dl className="min-w-0">
+              <dt className="text-xs font-medium text-ink-subtle">{cell.label}</dt>
+              <dd className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-ink">{cell.value}</dd>
+              <dd className="mt-0.5 truncate text-xs text-ink-subtle">{cell.detail}</dd>
+            </dl>
+          </article>
         ))}
-      </dl>
-      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+      </div>
+      {children && <div className="flex items-center justify-end gap-2">{children}</div>}
     </div>
   );
 }

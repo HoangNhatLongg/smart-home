@@ -6,7 +6,8 @@ export interface SectionProps {
   actions?: ReactNode;
   id?: string;
   className?: string;
-  bodyClassName?: string;
+  /** Remove the body padding so children can own the full width (row lists). */
+  flush?: boolean;
   children: ReactNode;
 }
 
@@ -20,7 +21,7 @@ export function Section({
   actions,
   id,
   className = "",
-  bodyClassName = "",
+  flush = false,
   children,
 }: SectionProps) {
   return (
@@ -32,7 +33,7 @@ export function Section({
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </header>
-      <div className={`p-4 ${bodyClassName}`}>{children}</div>
+      <div className={flush ? "" : "p-4"}>{children}</div>
     </section>
   );
 }

@@ -17,6 +17,7 @@ set(NODE_MODULE_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/main/sm_command"
     "${CMAKE_CURRENT_LIST_DIR}/main/sm_configuration"
     "${CMAKE_CURRENT_LIST_DIR}/main/sm_ota"
+    "${CMAKE_CURRENT_LIST_DIR}/main/sm_provision"
     "${CMAKE_CURRENT_LIST_DIR}/main/sm_app"
 )
 set(EXTRA_COMPONENT_DIRS ${NODE_MODULE_DIRS})

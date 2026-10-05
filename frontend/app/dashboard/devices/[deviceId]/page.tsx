@@ -9,7 +9,7 @@ import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PollBadge } from "@/components/dashboard/PollBadge";
-import { CommandFeedback, relayNamesOf } from "@/components/devices/CommandFeedback";
+import { CommandFeedback } from "@/components/devices/CommandFeedback";
 import { RelayControls } from "@/components/devices/RelayToggle";
 import { TelemetryPanel } from "@/components/devices/TelemetryPanel";
 import { ConfigurationPanel } from "@/components/devices/ConfigurationPanel";
@@ -152,7 +152,7 @@ export default function DeviceDetailPage() {
       <CommandFeedback
         tracker={tracker}
         states={tree.snapshot?.states ?? {}}
-        relayNames={relayNamesOf(device ? [device] : [])}
+        devices={device ? [device] : []}
       />
     </div>
   );

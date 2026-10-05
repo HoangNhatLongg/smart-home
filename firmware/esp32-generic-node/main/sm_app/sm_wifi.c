@@ -11,13 +11,16 @@
 #include "freertos/task.h"
 #include "lwip/ip_addr.h"
 #include "sm_app.h"
+#include "sm_device.h"
 #include "sm_mqtt.h"
+#include "sm_provision.h"
 
 static const char *TAG = "wifi";
 
 #define SM_WIFI_RETRY_BASE_MS 2000
 #define SM_WIFI_RETRY_MAX_MS  60000
 
+static sm_wifi_credentials_t s_credentials;
 static bool s_mqtt_started = false;
 static TaskHandle_t s_reconnect_task = NULL;
 
@@ -46,7 +49,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t event_i
     (void)arg;
 
     if (base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        ESP_LOGI(TAG, "Đang kết nối tới Wi-Fi SSID '%s'", CONFIG_NODE_WIFI_SSID);
+        ESP_LOGI(TAG, "Đang kết nối tới Wi-Fi SSID '%s'", s_credentials.ssid);
         esp_wifi_connect();
         return;
     }
@@ -76,22 +79,30 @@ static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t event_i
 
 esp_err_t sm_wifi_start(void)
 {
-    if (CONFIG_NODE_WIFI_SSID[0] == '\0') {
-        ESP_LOGE(TAG, "Chưa cấu hình SSID: đặt NODE_WIFI_SSID qua `idf.py menuconfig`");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (xTaskCreate(reconnect_task, "wifi_retry", 3072, NULL, 3, &s_reconnect_task) != pdPASS) {
-        ESP_LOGE(TAG, "Không thể tạo task kết nối lại Wi-Fi");
-        return ESP_ERR_NO_MEM;
-    }
-
     esp_err_t err = esp_netif_init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_netif_init thất bại: %s", esp_err_to_name(err));
         return err;
     }
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    bool have_credentials = sm_device_load_wifi_credentials(&s_credentials) == ESP_OK;
+    if (!have_credentials && CONFIG_NODE_PROVISION_ENABLED) {
+        /* No network is known, so a phone configures the node over SoftAP.
+         * sm_mqtt_start() runs after the reboot that follows provisioning. */
+        ESP_LOGW(TAG, "Chưa có Wi-Fi nào được lưu: chuyển sang chế độ cấu hình qua điện thoại");
+        return sm_provision_start();
+    }
+
+    if (!have_credentials) {
+        ESP_LOGE(TAG, "Chưa cấu hình SSID và tắt provisioning: đặt NODE_WIFI_SSID qua menuconfig");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (xTaskCreate(reconnect_task, "wifi_retry", 3072, NULL, 3, &s_reconnect_task) != pdPASS) {
+        ESP_LOGE(TAG, "Không thể tạo task kết nối lại Wi-Fi");
+        return ESP_ERR_NO_MEM;
+    }
 
     esp_netif_create_default_wifi_sta();
 
@@ -101,13 +112,12 @@ esp_err_t sm_wifi_start(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL, NULL));
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = CONFIG_NODE_WIFI_SSID,
-            .password = CONFIG_NODE_WIFI_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_OPEN,
-        },
-    };
+    wifi_config_t wifi_config = {0};
+    size_t ssid_len = strnlen(s_credentials.ssid, sizeof(wifi_config.sta.ssid));
+    size_t pass_len = strnlen(s_credentials.password, sizeof(wifi_config.sta.password));
+    memcpy(wifi_config.sta.ssid, s_credentials.ssid, ssid_len);
+    memcpy(wifi_config.sta.password, s_credentials.password, pass_len);
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));

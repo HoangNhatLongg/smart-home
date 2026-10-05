@@ -4,6 +4,7 @@ import {
   Bot,
   Boxes,
   Cpu,
+  CircleUserRound,
   House,
   LayoutDashboard,
   MapPin,
@@ -26,9 +27,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/rooms", label: "Phòng", icon: MapPin },
   { href: "/dashboard/devices", label: "Thiết bị", icon: Cpu },
   { href: "/dashboard/environment", label: "Môi trường", icon: Thermometer },
-  { href: "/dashboard/automation", label: "Hẹn giờ", icon: Bot },
-  { href: "/dashboard/ota", label: "Cập nhật", icon: Boxes },
-  { href: "/dashboard/voice", label: "Giọng nói", icon: Mic },
+  { href: "/dashboard/automation", label: "Tự động hóa", icon: Bot },
+  { href: "/dashboard/ota", label: "Cập nhật OTA", icon: Boxes },
+  { href: "/dashboard/voice", label: "Trợ lý giọng nói", icon: Mic },
 ];
 
 export function isActivePath(pathname: string, href: string): boolean {
@@ -60,9 +61,12 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="border-b border-line px-4 py-4">
-          <p className="text-sm font-semibold text-ink">Nhà thông minh</p>
-          <p className="text-xs text-ink-subtle">Bảng điều khiển</p>
+        <div className="flex items-center gap-3 border-b border-line px-4 py-5">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-white"><House size={20} strokeWidth={2} aria-hidden /></span>
+          <div>
+            <p className="text-[15px] font-semibold text-ink">Smart Home</p>
+            <p className="text-xs text-ink-subtle">IoT System</p>
+          </div>
         </div>
         <ul className="flex-1 space-y-0.5 overflow-y-auto p-3">
           {NAV_ITEMS.map((item) => {
@@ -87,6 +91,12 @@ export function Sidebar({ open, onNavigate }: SidebarProps) {
             );
           })}
         </ul>
+        <div className="border-t border-line p-3">
+          <div className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-ink-muted">
+            <CircleUserRound size={17} strokeWidth={1.75} aria-hidden />
+            <span>Tài khoản</span>
+          </div>
+        </div>
       </nav>
     </>
   );

@@ -112,3 +112,54 @@ esp_err_t sm_device_load_relay_state(uint8_t relay_index, bool *out)
     *out = (bitmap & (1u << (relay_index - 1))) != 0;
     return ESP_OK;
 }
+
+esp_err_t sm_device_load_wifi_credentials(sm_wifi_credentials_t *out)
+{
+    if (out == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    /* Credentials written by the phone portal win, so a board can be moved to
+     * another network without reflashing. */
+    if (sm_nvs_read_str(SM_NVS_KEY_WIFI_SSID, out->ssid, sizeof(out->ssid)) == ESP_OK &&
+        out->ssid[0] != '\0') {
+        if (sm_nvs_read_str(SM_NVS_KEY_WIFI_PASS, out->password, sizeof(out->password)) != ESP_OK) {
+            out->password[0] = '\0';
+        }
+        return ESP_OK;
+    }
+
+    copy_bounded(out->ssid, sizeof(out->ssid), CONFIG_NODE_WIFI_SSID);
+    copy_bounded(out->password, sizeof(out->password), CONFIG_NODE_WIFI_PASSWORD);
+
+    if (out->ssid[0] == '\0') {
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    /* Development path: remember the menuconfig credentials so the provisioning
+     * portal is not offered again on the next boot. */
+    ESP_LOGW(TAG, "Chưa có Wi-Fi trong NVS, dùng giá trị menuconfig '%s'", out->ssid);
+    return sm_device_save_wifi_credentials(out->ssid, out->password);
+}
+
+esp_err_t sm_device_save_wifi_credentials(const char *ssid, const char *password)
+{
+    if (ssid == NULL || ssid[0] == '\0') {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (strlen(ssid) >= SM_WIFI_SSID_MAX_LEN) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    if (password != NULL && strlen(password) >= SM_WIFI_PASS_MAX_LEN) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    esp_err_t err = sm_nvs_write_str(SM_NVS_KEY_WIFI_PASS, password != NULL ? password : "");
+    if (err != ESP_OK) {
+        return err;
+    }
+    /* SSID last: its presence means "provisioned", so it must not be written
+     * before the password is stored. */
+    return sm_nvs_write_str(SM_NVS_KEY_WIFI_SSID, ssid);
+}

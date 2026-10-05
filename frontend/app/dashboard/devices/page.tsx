@@ -7,7 +7,7 @@ import { CardGrid } from "@/components/ui/Card";
 import { DataState } from "@/components/ui/DataState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PollBadge } from "@/components/dashboard/PollBadge";
-import { CommandFeedback, relayNamesOf } from "@/components/devices/CommandFeedback";
+import { CommandFeedback } from "@/components/devices/CommandFeedback";
 import { DeviceCard } from "@/components/devices/DeviceCard";
 import { useDeviceTree } from "@/lib/hooks/useDeviceTree";
 import { useCommandTracker } from "@/lib/hooks/useCommandTracker";
@@ -125,11 +125,7 @@ export default function DevicesPage() {
         </CardGrid>
       </DataState>
 
-      <CommandFeedback
-        tracker={tracker}
-        states={snapshot?.states ?? {}}
-        relayNames={relayNamesOf(allDevices)}
-      />
+      <CommandFeedback tracker={tracker} states={snapshot?.states ?? {}} devices={allDevices} />
     </div>
   );
 }

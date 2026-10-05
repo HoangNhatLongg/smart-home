@@ -5,7 +5,8 @@ export interface CardProps {
   description?: ReactNode;
   actions?: ReactNode;
   className?: string;
-  bodyClassName?: string;
+  /** Remove the body padding so children can own the full width (row lists). */
+  flush?: boolean;
   children?: ReactNode;
 }
 
@@ -14,7 +15,7 @@ export function Card({
   description,
   actions,
   className = "",
-  bodyClassName = "",
+  flush = false,
   children,
 }: CardProps) {
   const hasHeader = Boolean(title || description || actions);
@@ -33,7 +34,7 @@ export function Card({
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </header>
       )}
-      <div className={`p-4 ${bodyClassName}`}>{children}</div>
+      <div className={flush ? "" : "p-4"}>{children}</div>
     </section>
   );
 }

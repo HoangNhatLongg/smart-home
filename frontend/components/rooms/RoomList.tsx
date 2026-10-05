@@ -16,7 +16,7 @@ export function RoomList({ rooms, devices }: { rooms: Room[]; devices: Device[] 
             id={room.id}
             title={room.name}
             description={`${roomDevices.length} thiết bị · ${online} đang hoạt động`}
-            bodyClassName="p-0"
+            flush
           >
             {roomDevices.length === 0 ? (
               <p className="px-4 py-4 text-sm text-ink-subtle">Chưa có thiết bị trong phòng này.</p>

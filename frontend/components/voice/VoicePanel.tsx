@@ -117,6 +117,8 @@ export function VoicePanel({ variant = "page" }: { variant?: "page" | "drawer" }
     warn: "text-warn",
   };
 
+  const ProgressIcon = progress?.icon ?? null;
+
   return (
     <div className="space-y-4">
       <form
@@ -168,10 +170,14 @@ export function VoicePanel({ variant = "page" }: { variant?: "page" | "drawer" }
           role="status"
           className="flex items-start gap-2.5 rounded-lg border border-line bg-surface-muted px-3.5 py-3"
         >
-          {(() => {
-            const Icon = progress.icon;
-            return <Icon size={16} strokeWidth={1.75} className={`mt-0.5 shrink-0 ${progressTone[progress.tone]}`} aria-hidden />;
-          })()}
+          {ProgressIcon && (
+            <ProgressIcon
+              size={16}
+              strokeWidth={1.75}
+              className={`mt-0.5 shrink-0 ${progressTone[progress.tone]}`}
+              aria-hidden
+            />
+          )}
           <div className="min-w-0">
             <p className={`text-sm font-medium ${progressTone[progress.tone]}`}>{progress.label}</p>
             <p className="text-xs text-ink-subtle">{progress.detail}</p>

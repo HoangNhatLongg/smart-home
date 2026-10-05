@@ -1,30 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useToast } from "@/components/ui/Toaster";
 import type { Device, DeviceState } from "@/lib/api/contract";
 import type { CommandTrackerController } from "@/lib/hooks/useCommandTracker";
-
-/** Relay capability display names, keyed by human deviceId then instanceCode. */
-export function relayNamesOf(devices: Device[]): Record<string, Record<string, string>> {
-  return Object.fromEntries(
-    devices.map((device) => [
-      device.deviceId,
-      Object.fromEntries(
-        device.capabilities
-          .filter((capability) => capability.code === "relay")
-          .map((capability) => [capability.instanceCode, capability.name ?? capability.instanceCode]),
-      ),
-    ]),
-  );
-}
 
 export interface CommandFeedbackProps {
   tracker: CommandTrackerController;
   /** Confirmed device State, keyed by human deviceId. */
   states: Record<string, DeviceState | null>;
-  /** Relay capability names, keyed by human deviceId then instanceCode. */
-  relayNames: Record<string, Record<string, string>>;
+  /** Used only to look up the relay display name. */
+  devices: Device[];
 }
 
 /**
@@ -34,9 +20,27 @@ export interface CommandFeedbackProps {
  * `GET /api/commands/:id` reported SUCCESS, and the position is read from the
  * confirmed State that the same tracker refresh produced.
  */
-export function CommandFeedback({ tracker, states, relayNames }: CommandFeedbackProps) {
+export function CommandFeedback({ tracker, states, devices }: CommandFeedbackProps) {
   const { notify } = useToast();
   const handledSettledAt = useRef<number | null>(null);
+
+  const relayNames = useMemo(
+    () =>
+      Object.fromEntries(
+        devices.map((device) => [
+          device.deviceId,
+          Object.fromEntries(
+            device.capabilities
+              .filter((capability) => capability.code === "relay")
+              .map((capability) => [
+                capability.instanceCode,
+                capability.name ?? capability.instanceCode,
+              ]),
+          ),
+        ]),
+      ) as Record<string, Record<string, string>>,
+    [devices],
+  );
 
   const status = tracker.status;
   const settledAt = tracker.settledAt;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Cpu, Droplets, Lightbulb, MapPin, Thermometer } from "lucide-react";
 import { RelayControls } from "@/components/devices/RelayToggle";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Device, DeviceState, TelemetryPoint } from "@/lib/api/contract";
@@ -24,30 +24,35 @@ export function DeviceCard({ device, state, telemetry, tracker }: DeviceCardProp
   const temperature = telemetry?.data.temperature ?? null;
   const humidity = telemetry?.data.humidity ?? null;
   const hasSensors = temperature !== null || humidity !== null;
+  const isRelay = relays.length > 0;
 
   return (
-    <article className="flex flex-col rounded-lg border border-line bg-surface">
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
-        <div className="min-w-0">
+    <article className="flex flex-col rounded-lg border border-line bg-surface transition-colors hover:border-line-strong">
+      <header className="flex items-start justify-between gap-3 px-4 pt-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${isRelay ? "bg-amber-50 text-amber-600" : "bg-accent-subtle text-accent"}`}>
+            {isRelay ? <Lightbulb size={20} strokeWidth={1.8} aria-hidden /> : <Cpu size={20} strokeWidth={1.8} aria-hidden />}
+          </span>
+          <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-ink">{device.name}</h2>
           <p className="mt-0.5 truncate text-xs text-ink-subtle">
-            {device.roomName ? `${device.roomName} · ` : ""}
-            {device.deviceId}
+            {device.roomName ? <><MapPin className="mr-1 inline" size={12} strokeWidth={1.75} aria-hidden />{device.roomName} · </> : ""}{device.deviceId}
           </p>
+          </div>
         </div>
         <StatusBadge status={device.status} />
       </header>
 
       <div className="space-y-3.5 px-4 py-3.5">
         {hasSensors ? (
-          <dl className="flex items-baseline gap-6 text-sm">
-            <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-ink-subtle">Nhiệt độ</dt>
-              <dd className="font-medium text-ink">{formatTemperature(temperature)}</dd>
+          <dl className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-md bg-surface-muted px-2.5 py-2">
+              <dt className="flex items-center gap-1 text-xs text-ink-subtle"><Thermometer size={13} className="text-bad" aria-hidden />Nhiệt độ</dt>
+              <dd className="mt-1 font-medium text-ink">{formatTemperature(temperature)}</dd>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <dt className="text-xs text-ink-subtle">Độ ẩm</dt>
-              <dd className="font-medium text-ink">{formatHumidity(humidity)}</dd>
+            <div className="rounded-md bg-surface-muted px-2.5 py-2">
+              <dt className="flex items-center gap-1 text-xs text-ink-subtle"><Droplets size={13} className="text-info" aria-hidden />Độ ẩm</dt>
+              <dd className="mt-1 font-medium text-ink">{formatHumidity(humidity)}</dd>
             </div>
           </dl>
         ) : (

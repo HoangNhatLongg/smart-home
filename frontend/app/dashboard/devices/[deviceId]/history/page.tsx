@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PollBadge } from "@/components/dashboard/PollBadge";
 import { usePollingResource } from "@/lib/hooks/usePollingResource";
 import { getDevice, getStateHistory } from "@/lib/api";
-import { formatDateTime, formatStateValue } from "@/lib/format";
+import { formatDateTime, formatHistoryValue } from "@/lib/format";
 
 const ROW_SHELL = "flex items-center justify-between gap-4 px-4 py-2.5 text-sm";
 const ROW_LABEL = "text-xs text-ink-subtle";
@@ -86,7 +86,7 @@ export default function StateHistoryPage() {
                 <tr key={entry.id}>
                   <td className="px-4 py-2.5 text-ink-muted">{formatDateTime(entry.recordedAt)}</td>
                   <td className="px-4 py-2.5 text-ink">{entry.capability}</td>
-                  <td className="px-4 py-2.5 font-medium text-ink">{formatStateValue(entry.value)}</td>
+                  <td className="px-4 py-2.5 font-medium text-ink">{formatHistoryValue(entry.value)}</td>
                   <td className="px-4 py-2.5">
                     {entry.commandId ? (
                       <Badge tone="info">{entry.commandId}</Badge>
@@ -105,7 +105,7 @@ export default function StateHistoryPage() {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-ink">{entry.capability}</span>
                   <span className="text-sm font-semibold text-ink">
-                    {formatStateValue(entry.value)}
+                    {formatHistoryValue(entry.value)}
                   </span>
                 </div>
                 <div className={`${ROW_SHELL} -mx-4 px-4 py-0`}>
