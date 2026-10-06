@@ -19,6 +19,10 @@ extern "C" {
 typedef struct {
     bool dht11_enabled;
     int dht11_gpio;
+    bool soil_moisture_enabled;
+    int soil_moisture_gpio;
+    bool motion_enabled;
+    int motion_gpio;
     uint8_t relay_count;
     int relay_gpio[SM_MAX_RELAYS];
     bool relay_active_high;
@@ -27,8 +31,9 @@ typedef struct {
 const sm_hw_config_t *sm_hw_config(void);
 
 esp_err_t sm_hw_init(void);
+esp_err_t sm_hw_validate_setup(const sm_setup_t *setup, char *error, size_t error_len);
 
-/* Relay driver: relay index is 1-based (relay_1 .. relay_2). */
+/* Relay driver: relay index is 1-based (relay_1 .. relay_8). */
 bool sm_hw_relay_exists(uint8_t relay_index);
 esp_err_t sm_hw_relay_set(uint8_t relay_index, bool on);
 bool sm_hw_relay_get(uint8_t relay_index);
@@ -36,6 +41,8 @@ bool sm_hw_relay_get(uint8_t relay_index);
 /* DHT11 driver. Returns ESP_ERR_INVALID_STATE when the sensor does not answer:
  * callers must not publish fabricated values in that case. */
 esp_err_t sm_hw_dht11_read(float *temperature_c, float *humidity_pct);
+esp_err_t sm_hw_soil_moisture_read(float *percent);
+esp_err_t sm_hw_motion_read(bool *detected);
 
 #ifdef __cplusplus
 }

@@ -15,6 +15,7 @@
 #include "sm_state.h"
 #include "sm_telemetry.h"
 #include "sm_wifi.h"
+#include "sm_wifi_reset.h"
 
 static const char *TAG = "app";
 
@@ -95,19 +96,41 @@ esp_err_t sm_app_start(void)
         return err;
     }
 
-    err = sm_hw_init();
+    /* Start the button monitor before validating saved GPIOs. Otherwise a bad
+     * persisted pin would enter recovery mode before the BOOT button exists. */
+    err = sm_wifi_reset_start();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Khởi tạo phần cứng thất bại: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Khởi động nút đặt lại Wi-Fi thất bại: %s", esp_err_to_name(err));
         return err;
     }
 
-    err = sm_mqtt_init();
+    err = sm_hw_init();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Khởi tạo MQTT thất bại: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Khởi tạo phần cứng thất bại: %s", esp_err_to_name(err));
+#if CONFIG_NODE_PROVISION_ENABLED
+        if (err == ESP_ERR_INVALID_ARG) {
+            err = sm_wifi_start_recovery_portal();
+            if (err == ESP_OK) {
+                ESP_LOGW(TAG, "Đã mở trang cấu hình khôi phục tại http://192.168.4.1; đổi các GPIO không hợp lệ rồi lưu");
+                return ESP_OK;
+            }
+            ESP_LOGE(TAG, "Không mở được trang cấu hình khôi phục: %s", esp_err_to_name(err));
+        }
+#endif
         return err;
     }
-    sm_mqtt_set_event_handler(on_mqtt_event, NULL);
-    sm_mqtt_set_inbound_handler(on_inbound, NULL);
+
+    if (sm_device_is_paired()) {
+        err = sm_mqtt_init();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Khởi tạo MQTT thất bại: %s", esp_err_to_name(err));
+            return err;
+        }
+        sm_mqtt_set_event_handler(on_mqtt_event, NULL);
+        sm_mqtt_set_inbound_handler(on_inbound, NULL);
+    } else {
+        ESP_LOGI(TAG, "Thiết bị chưa ghép nối; MQTT sẽ khởi động sau khi Backend cấp cấu hình");
+    }
 
     err = sm_ota_init();
     if (err != ESP_OK) {

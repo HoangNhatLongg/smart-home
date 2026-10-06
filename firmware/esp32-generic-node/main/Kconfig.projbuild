@@ -21,13 +21,13 @@ menu "Generic IoT Node"
 
         config NODE_HOME_ID
             string "home_id"
-            default "home01"
+            default ""
             help
                 Must match the Backend Home resource id.
 
         config NODE_ROOM_ID
             string "room_id"
-            default "livingroom"
+            default ""
             help
                 Must match the Backend Room resource id.
 
@@ -53,9 +53,9 @@ menu "Generic IoT Node"
         config NODE_RELAY_COUNT
             int "Number of relay instances on this node"
             default 1
-            range 0 2
+            range 0 8
             help
-                0 = sensor only node, 1 = one relay, 2 = two relays.
+                0 = sensor-only node; up to eight independently controlled relays.
                 Relay instance codes are relay_1 .. relay_N.
 
         config NODE_RELAY_1_GPIO
@@ -68,6 +68,42 @@ menu "Generic IoT Node"
             depends on NODE_RELAY_COUNT >= 2
             int "RELAY_2_GPIO"
             default 1
+            range 0 21
+
+        config NODE_RELAY_3_GPIO
+            depends on NODE_RELAY_COUNT >= 3
+            int "RELAY_3_GPIO"
+            default 3
+            range 0 21
+
+        config NODE_RELAY_4_GPIO
+            depends on NODE_RELAY_COUNT >= 4
+            int "RELAY_4_GPIO"
+            default 5
+            range 0 21
+
+        config NODE_RELAY_5_GPIO
+            depends on NODE_RELAY_COUNT >= 5
+            int "RELAY_5_GPIO"
+            default 6
+            range 0 21
+
+        config NODE_RELAY_6_GPIO
+            depends on NODE_RELAY_COUNT >= 6
+            int "RELAY_6_GPIO"
+            default 7
+            range 0 21
+
+        config NODE_RELAY_7_GPIO
+            depends on NODE_RELAY_COUNT >= 7
+            int "RELAY_7_GPIO"
+            default 10
+            range 0 21
+
+        config NODE_RELAY_8_GPIO
+            depends on NODE_RELAY_COUNT >= 8
+            int "RELAY_8_GPIO"
+            default 11
             range 0 21
 
         config NODE_RELAY_ACTIVE_HIGH
@@ -88,6 +124,13 @@ menu "Generic IoT Node"
     endmenu
 
     menu "Wi-Fi"
+        config NODE_BACKEND_URL
+            string "Backend URL reachable from ESP after Wi-Fi joins"
+            default "http://192.168.1.10:3001"
+            help
+                Set the computer's LAN IP, not localhost. The ESP uses this URL
+                for pairing and recovery when MQTT broker changes.
+
         config NODE_WIFI_SSID
             string "WiFi SSID (empty = configure from phone)"
             default ""
@@ -125,12 +168,39 @@ menu "Generic IoT Node"
             int "Provisioning web server port"
             default 80
             range 1 65535
+
+        config NODE_WIFI_RESET_BUTTON_ENABLED
+            bool "Hold BOOT to reset Wi-Fi or factory settings"
+            default y
+            help
+                After the node has booted normally, hold the configured
+                BOOT/reset button. Release after the configured hold duration
+                to clear Wi-Fi only, or hold for 15 seconds to erase NVS.
+
+        config NODE_WIFI_RESET_BUTTON_GPIO
+            depends on NODE_WIFI_RESET_BUTTON_ENABLED
+            int "Wi-Fi reset button GPIO (ESP32-C3 BOOT = 9)"
+            default 9
+            range 0 21
+            help
+                Use a GPIO that is not assigned to a relay or sensor. The
+                built-in BOOT button is GPIO9 on common ESP32-C3 boards.
+
+        config NODE_WIFI_RESET_HOLD_SECONDS
+            depends on NODE_WIFI_RESET_BUTTON_ENABLED
+            int "Wi-Fi reset hold duration (seconds)"
+            default 5
+            range 2 10
+            help
+                Release BOOT after this duration but before 15 seconds to
+                reset only Wi-Fi and reopen the setup portal. Holding BOOT
+                  for 15 seconds erases the whole NVS (factory reset).
     endmenu
 
     menu "MQTT"
         config NODE_MQTT_BROKER_URI
             string "MQTT broker URI (EMQX)"
-            default "mqtt://192.168.1.10:1883"
+            default ""
             help
                 Examples: mqtt://192.168.1.10:1883 , mqtts://mqtt.example.com:8883
 
@@ -150,13 +220,8 @@ menu "Generic IoT Node"
 
     menu "Time"
         config NODE_SNTP_SERVER
-            string "SNTP server (empty = no time sync, timestamps stay at epoch)"
+            string "SNTP server (required before telemetry is published)"
             default "pool.ntp.org"
-
-        config NODE_TIME_SYNC_WAIT_MS
-            int "Wait for first time sync before telemetry (ms)"
-            default 15000
-            range 0 60000
     endmenu
 
     menu "OTA"

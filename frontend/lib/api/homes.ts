@@ -28,3 +28,8 @@ export async function updateHome(homeId: string, name: string): Promise<Home | n
     }),
   );
 }
+
+/** DELETE /api/homes/:homeId — API_SPEC §3. */
+export async function deleteHome(homeId: string): Promise<void> {
+  await request<unknown>(`/api/homes/${encodeURIComponent(homeId)}`, { method: "DELETE" });
+}

@@ -51,7 +51,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED: {
         s_connected = true;
-        ESP_LOGI(TAG, "Đã kết nối MQTT tới %s", CONFIG_NODE_MQTT_BROKER_URI);
+        ESP_LOGI(TAG, "Đã kết nối MQTT tới %s", sm_broker_uri());
 
         /* Subscribe to the Backend topics, MQTT_SPEC.md §2 / §3 */
         char topic_command[SM_TOPIC_MAX_LEN];
@@ -173,8 +173,13 @@ static void inbound_task(void *arg)
 
 esp_err_t sm_mqtt_init(void)
 {
-    if (CONFIG_NODE_MQTT_BROKER_URI[0] == '\0') {
-        ESP_LOGE(TAG, "Chưa cấu hình broker: đặt NODE_MQTT_BROKER_URI qua `idf.py menuconfig`");
+    const char *broker_uri = sm_broker_uri();
+    const char *broker_user = sm_broker_username();
+    const char *broker_pass = sm_broker_password();
+
+    if (broker_uri[0] == '\0') {
+        ESP_LOGE(TAG, "Chưa cấu hình broker: nhập trong trang cấu hình hoặc đặt "
+                      "NODE_MQTT_BROKER_URI qua `idf.py menuconfig`");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -194,14 +199,14 @@ esp_err_t sm_mqtt_init(void)
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             .address = {
-                .uri = CONFIG_NODE_MQTT_BROKER_URI,
+                .uri = broker_uri,
             },
         },
         .credentials = {
-            .username = CONFIG_NODE_MQTT_USERNAME[0] != '\0' ? CONFIG_NODE_MQTT_USERNAME : NULL,
+            .username = broker_user[0] != '\0' ? broker_user : NULL,
             .client_id = sm_device_id(),
             .authentication = {
-                .password = CONFIG_NODE_MQTT_PASSWORD[0] != '\0' ? CONFIG_NODE_MQTT_PASSWORD : NULL,
+                .password = broker_pass[0] != '\0' ? broker_pass : NULL,
             },
         },
         .session = {
@@ -228,7 +233,7 @@ esp_err_t sm_mqtt_init(void)
         },
     };
 
-    if (strncmp(CONFIG_NODE_MQTT_BROKER_URI, "mqtts://", 8) == 0) {
+    if (strncmp(broker_uri, "mqtts://", 8) == 0) {
         mqtt_cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
     }
 

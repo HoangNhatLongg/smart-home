@@ -8,6 +8,16 @@ export async function getDevice(deviceId: string): Promise<Device | null> {
   return normalizeDevice(await request<unknown>(`/api/devices/${segment(deviceId)}`));
 }
 
+/** POST /api/rooms/:roomId/devices — API_SPEC §5 provisioning endpoint. */
+export async function createDevice(roomId: string, deviceId: string, name: string): Promise<Device | null> {
+  return normalizeDevice(
+    await request<unknown>(`/api/rooms/${segment(roomId)}/devices`, {
+      method: "POST",
+      body: { deviceId, name },
+    }),
+  );
+}
+
 /** PUT /api/devices/:deviceId — API_SPEC §5 (editable fields: name). */
 export async function updateDeviceName(deviceId: string, name: string): Promise<Device | null> {
   return normalizeDevice(
@@ -16,6 +26,11 @@ export async function updateDeviceName(deviceId: string, name: string): Promise<
       body: { name },
     }),
   );
+}
+
+/** DELETE /api/devices/:deviceId — revoke the pairing. */
+export async function deleteDevice(deviceId: string): Promise<void> {
+  await request<unknown>(`/api/devices/${segment(deviceId)}`, { method: "DELETE" });
 }
 
 /** GET /api/devices/:deviceId/capabilities — API_SPEC §6. */

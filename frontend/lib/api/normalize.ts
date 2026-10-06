@@ -27,6 +27,7 @@ import type {
   OtaJob,
   OtaStatus,
   Room,
+  RoomCategory,
   StateHistoryEntry,
   StateValue,
   TelemetryPoint,
@@ -231,6 +232,7 @@ export function normalizeDeviceCapability(input: unknown): DeviceCapability | nu
     instanceCode,
     code,
     name: pickString(record, ["name", "displayName", "display_name", "label"]),
+    config: pickRecord(record, ["config", "metadata"]),
     type: normalizeCapabilityType(first(record, ["type", "capabilityType", "capability_type"])),
     dataType: normalizeCapabilityDataType(first(record, ["dataType", "data_type"])),
     unit: pickString(record, ["unit"]),
@@ -280,6 +282,8 @@ export function normalizeRoom(input: unknown): Room | null {
     id: id ?? "",
     homeId: pickString(source, ["homeId", "home_id"]),
     name: name ?? "",
+    category: (pickString(source, ["category"]) as RoomCategory | null) ?? "other",
+    floor: pickNumber(source, ["floor"]),
   };
 }
 
@@ -378,7 +382,7 @@ function normalizeTelemetryData(input: unknown): Record<string, number | null> {
 }
 
 export function normalizeTelemetry(input: unknown): TelemetryPoint[] {
-  return asArray(input, "telemetry", "points", "series").map((row) => {
+  const points = asArray(input, "telemetry", "points", "series").map((row) => {
     const record = toRecord(row);
     return {
       recordedAt:
@@ -392,6 +396,17 @@ export function normalizeTelemetry(input: unknown): TelemetryPoint[] {
         ]) ?? "",
       data: normalizeTelemetryData(first(record, ["data", "values", "payload"])),
     };
+  });
+  // REST returns newest first; charts and current-reading panels consume
+  // chronological points and take the last point as the latest reading.
+  return points.sort((a, b) => {
+    const aTime = Date.parse(a.recordedAt);
+    const bTime = Date.parse(b.recordedAt);
+    const aValid = Number.isFinite(aTime);
+    const bValid = Number.isFinite(bTime);
+    if (!aValid) return bValid ? -1 : 0;
+    if (!bValid) return 1;
+    return aTime - bTime;
   });
 }
 

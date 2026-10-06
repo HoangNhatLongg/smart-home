@@ -29,6 +29,8 @@ model Room {
  id String @id @default(uuid()) @db.Uuid
  homeId String @db.Uuid @map("home_id")
  name String
+ category String @default("other")
+ floor Int?
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
  home Home @relation(fields:[homeId],references:[id],onDelete:Cascade)
@@ -53,7 +55,22 @@ model Device {
  stateHistory StateHistory[]
  commands Command[]
  otaJobs OtaJob[]
+ pairing DevicePairing?
  @@map("devices")
+}
+model DevicePairing {
+ id String @id @default(uuid()) @db.Uuid
+ deviceId String @unique @map("device_id")
+ deviceSecretHash String @map("device_secret_hash")
+ pairingCodeHash String @unique @map("pairing_code_hash")
+ status String
+ expiresAt DateTime @map("expires_at")
+ deviceRecordId String? @unique @db.Uuid @map("device_record_id")
+ mqttUri String? @map("mqtt_uri")
+ createdAt DateTime @default(now()) @map("created_at")
+ pairedAt DateTime? @map("paired_at")
+ device Device? @relation(fields:[deviceRecordId],references:[id],onDelete:Cascade)
+ @@map("device_pairings")
 }
 model CapabilityRegistry {
  id String @id @default(uuid()) @db.Uuid

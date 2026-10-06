@@ -223,6 +223,35 @@ ESP32 responds through the config topic:
 }
 ```
 
+The Generic ESP32-C3 Node also accepts a `hardware` object inside `config` on
+this same retained topic. It can configure DHT11, up to eight relays, one analog
+soil-moisture input and one digital motion input:
+
+```json
+{
+  "config_version": 4,
+  "config": {
+    "hardware": {
+      "dht11": { "enabled": true, "gpio": 4 },
+      "soil_moisture": { "enabled": true, "gpio": 0 },
+      "motion": { "enabled": true, "gpio": 1 },
+      "relays": [
+        { "gpio": 0, "active_high": false },
+        { "gpio": 1, "active_high": false },
+        { "gpio": 3, "active_high": false }
+      ]
+    }
+  }
+}
+```
+
+ESP validates supported GPIOs and duplicate use before persisting a hardware
+configuration. Digital peripherals use GPIO0, GPIO1, GPIO3–GPIO7, GPIO10 or
+GPIO11. Soil moisture uses ADC GPIO0, GPIO1, GPIO3 or GPIO4. Relay array order determines
+`relay_1` through `relay_8`. It acknowledges a valid change as `applied`, restarts,
+and republishes its capability list after reconnecting. Supported capability
+IDs are `temperature`, `humidity`, `relay`, `soil_moisture`, and `motion`.
+
 ## 12. OTA
 
 Backend -\> ESP32:

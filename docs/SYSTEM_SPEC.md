@@ -229,6 +229,41 @@ ESP32 -> EMQX -> Backend
 
 Local Broker/Bridge là hướng mở rộng, không triển khai trong MVP.
 
+## 16a. Two-stage device provisioning
+
+An unpaired ESP32-C3 first receives Wi-Fi, Backend base URL and hardware GPIO
+settings through its local SoftAP. It generates a random pairing code and a
+separate device secret, registers over Backend REST after joining Wi-Fi, and
+polls REST for its assignment. An authenticated Home owner enters the code in
+the Dashboard, chooses an owned Home and Room, and supplies the MQTT broker URI.
+The Backend creates the Device and returns Home/Room IDs and broker settings to
+the ESP after pairing. The ESP stores them in NVS and then starts the existing
+MQTT flow. The device secret authenticates subsequent REST bootstrap requests;
+the user's credentials never enter firmware. On a broker address change, the
+ESP polls REST while Wi-Fi is available and reboots to reconnect to the new
+broker. Local HTTP is permitted for lab LANs; HTTPS is required beyond a
+trusted LAN.
+
+Removing a Device in the Dashboard revokes its pairing. ESP detects the
+revocation through REST, clears Home/Room/MQTT credentials and opens SoftAP
+for a new pairing while retaining Wi-Fi and GPIO settings. Holding BOOT for
+5–14 seconds resets only Wi-Fi; holding 15 seconds erases NVS (factory reset).
+
+## 16b. Generic peripheral configuration
+
+One Generic ESP32-C3 Node can combine DHT11 temperature/humidity, up to eight
+relays (`relay_1` through `relay_8`), an analog soil-moisture sensor and a
+digital motion sensor. The owner selects fitted peripherals and GPIO pins in the Dashboard through the normal
+desired/applied Device Configuration flow. ESP is the final validator and
+publishes only successfully initialized capabilities. GPIO changes are stored
+then applied after a controlled restart; the Dashboard must warn users that
+this temporarily interrupts the device.
+
+The generic ESP32-C3 profile supports digital GPIO0, GPIO1, GPIO3–GPIO7,
+GPIO10 and GPIO11. Soil-moisture input additionally requires ADC GPIO0, GPIO1,
+GPIO3 or GPIO4.
+Every peripheral on a node must use a distinct pin.
+
 ## 17. Non-negotiable rules
 
 1.  Không đổi MQTT topic nếu chưa cập nhật MQTT_SPEC.

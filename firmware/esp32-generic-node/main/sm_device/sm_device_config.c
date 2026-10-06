@@ -15,7 +15,10 @@ static void config_defaults(sm_node_config_t *cfg)
 {
     memset(cfg, 0, sizeof(*cfg));
     cfg->config_version = 0;
-    cfg->telemetry_interval_s = CONFIG_NODE_TELEMETRY_INTERVAL;
+    cfg->telemetry_interval_s = CONFIG_NODE_TELEMETRY_INTERVAL >= SM_TELEMETRY_INTERVAL_MIN_S &&
+                                        CONFIG_NODE_TELEMETRY_INTERVAL <= SM_TELEMETRY_INTERVAL_MAX_S
+                                    ? CONFIG_NODE_TELEMETRY_INTERVAL
+                                    : SM_TELEMETRY_INTERVAL_MIN_S;
 }
 
 esp_err_t sm_node_config_init(void)
@@ -39,7 +42,15 @@ esp_err_t sm_node_config_init(void)
         if (config != NULL) {
             cJSON *interval = cJSON_GetObjectItemCaseSensitive(config, "telemetry_interval");
             if (cJSON_IsNumber(interval)) {
-                s_config.telemetry_interval_s = (uint32_t)cJSON_GetNumberValue(interval);
+                const double interval_value = cJSON_GetNumberValue(interval);
+                if (interval_value >= SM_TELEMETRY_INTERVAL_MIN_S &&
+                    interval_value <= SM_TELEMETRY_INTERVAL_MAX_S &&
+                    interval_value == (double)(uint32_t)interval_value) {
+                    s_config.telemetry_interval_s = (uint32_t)interval_value;
+                } else {
+                    ESP_LOGW(TAG, "telemetry_interval trong NVS không hợp lệ; dùng mặc định %u s",
+                             (unsigned)s_config.telemetry_interval_s);
+                }
             }
             for (int i = 0; i < SM_MAX_RELAYS; i++) {
                 char key[SM_NAME_MAX_LEN];
@@ -73,6 +84,13 @@ esp_err_t sm_node_config_get(sm_node_config_t *out)
 esp_err_t sm_node_config_save(uint32_t config_version, const char *config_json, const sm_node_config_t *cfg)
 {
     if (cfg == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (cfg->telemetry_interval_s < SM_TELEMETRY_INTERVAL_MIN_S ||
+        cfg->telemetry_interval_s > SM_TELEMETRY_INTERVAL_MAX_S) {
+        ESP_LOGE(TAG, "Từ chối lưu telemetry_interval=%u (giới hạn %u..%u s)",
+                 (unsigned)cfg->telemetry_interval_s, (unsigned)SM_TELEMETRY_INTERVAL_MIN_S,
+                 (unsigned)SM_TELEMETRY_INTERVAL_MAX_S);
         return ESP_ERR_INVALID_ARG;
     }
 

@@ -14,6 +14,10 @@ export interface RelayToggleProps {
   disabled?: boolean;
 }
 
+const RELAY_KIND_LABELS: Record<string, string> = {
+  light: "Đèn", pump: "Bơm", fan: "Quạt", socket: "Ổ cắm", curtain: "Rèm", other: "Thiết bị khác",
+};
+
 /**
  * One relay instance (`relay_1`, `relay_2`, ...).
  *
@@ -22,7 +26,9 @@ export interface RelayToggleProps {
  * flipped optimistically from the POST response.
  */
 export function RelayToggle({ device, capability, value, tracker, disabled = false }: RelayToggleProps) {
-  const mine = tracker.deviceId === device.deviceId;
+  // A node may expose several relay controls. Track the pending command by
+  // both its node and relay instance so only the clicked switch shows loading.
+  const mine = tracker.deviceId === device.deviceId && tracker.instanceCode === capability.instanceCode;
   const phase = mine ? tracker.status : "idle";
   const busy = phase === "sending" || phase === "waiting";
   const offline = device.status !== "online";
@@ -37,7 +43,9 @@ export function RelayToggle({ device, capability, value, tracker, disabled = fal
     return { tone: "text-warn", text: tracker.error ?? "Thiết bị không phản hồi." };
   })();
 
-  const label = capability.name ?? capability.instanceCode;
+  const label = capability.name ?? `Relay ${capability.instanceCode.match(/\d+$/)?.[0] ?? ""}`;
+  const kind = typeof capability.config?.kind === "string" ? capability.config.kind : null;
+  const description = typeof capability.config?.description === "string" ? capability.config.description : null;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -51,6 +59,7 @@ export function RelayToggle({ device, capability, value, tracker, disabled = fal
           void tracker.requestRelay(device.deviceId, capability.instanceCode, next);
         }}
       />
+      {(kind || description) && <p className="pl-14 text-xs text-ink-subtle">{[kind ? RELAY_KIND_LABELS[kind] ?? kind : null, description].filter(Boolean).join(" · ")}</p>}
       <p
         aria-live="polite"
         className="flex min-h-4 items-center gap-2 pl-14 text-xs text-ink-subtle"
@@ -72,7 +81,9 @@ export function RelayControls({
   state: Record<string, unknown> | null | undefined;
   tracker: CommandTrackerController;
 }) {
-  const relays = device.capabilities.filter((capability) => capability.code === "relay");
+  const relays = device.capabilities.filter(
+    (capability) => capability.code === "relay" && capability.config?.configured !== false,
+  );
 
   if (relays.length === 0) {
     return <p className="text-xs text-ink-subtle">Thiết bị không có relay.</p>;

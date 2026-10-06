@@ -1,0 +1,3 @@
+ALTER TABLE "rooms"
+  ADD COLUMN "category" VARCHAR NOT NULL DEFAULT 'other',
+  ADD COLUMN "floor" INTEGER;

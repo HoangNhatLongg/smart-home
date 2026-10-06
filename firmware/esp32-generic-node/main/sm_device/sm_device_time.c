@@ -10,7 +10,7 @@
 
 static const char *TAG = "time";
 
-static bool s_synced = false;
+static volatile bool s_synced = false;
 
 static void on_time_sync(struct timeval *tv)
 {

@@ -2,7 +2,8 @@ import { formatHumidity, formatTemperature } from "@/lib/format";
 import { House, Cpu, MapPin, Thermometer } from "lucide-react";
 
 export interface SummaryStripProps {
-  homeName: string | null;
+  homeCount: number;
+  homeNames: string;
   online: number;
   deviceCount: number;
   roomCount: number;
@@ -15,7 +16,8 @@ export interface SummaryStripProps {
  * Compact, information-first metrics sourced from the current device tree.
  */
 export function SummaryStrip({
-  homeName,
+  homeCount,
+  homeNames,
   online,
   deviceCount,
   roomCount,
@@ -24,10 +26,10 @@ export function SummaryStrip({
   children,
 }: SummaryStripProps) {
   const cells = [
-    { label: "Ngôi nhà", value: homeName ? "1" : "0", detail: homeName ?? "Chưa thiết lập", icon: House, tone: "bg-blue-50 text-blue-700" },
+    { label: "Ngôi nhà", value: String(homeCount), detail: homeNames || "Chưa thiết lập", icon: House, tone: "bg-blue-50 text-blue-700" },
     { label: "Phòng", value: String(roomCount), detail: roomCount === 1 ? "1 phòng đã tạo" : `${roomCount} phòng đã tạo`, icon: MapPin, tone: "bg-violet-50 text-violet-700" },
     { label: "Thiết bị", value: String(deviceCount), detail: `${online} đang trực tuyến`, icon: Cpu, tone: "bg-emerald-50 text-emerald-700" },
-    { label: "Môi trường", value: formatTemperature(averageTemperature), detail: `Độ ẩm ${formatHumidity(averageHumidity)}`, icon: Thermometer, tone: "bg-amber-50 text-amber-700" },
+    { label: "Môi trường · TB thiết bị trực tuyến", value: formatTemperature(averageTemperature), detail: `Độ ẩm ${formatHumidity(averageHumidity)}`, icon: Thermometer, tone: "bg-amber-50 text-amber-700" },
   ];
 
   return (

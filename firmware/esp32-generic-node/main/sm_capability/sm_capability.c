@@ -44,6 +44,8 @@ esp_err_t sm_capability_publish(void)
         add_capability(capabilities, "temperature", "temperature");
         add_capability(capabilities, "humidity", "humidity");
     }
+    if (hw->soil_moisture_enabled) add_capability(capabilities, "soil_moisture", "soil_moisture");
+    if (hw->motion_enabled) add_capability(capabilities, "motion", "motion");
     for (uint8_t i = 0; i < hw->relay_count && i < SM_MAX_RELAYS; i++) {
         char instance[SM_NAME_MAX_LEN];
         snprintf(instance, sizeof(instance), "relay_%u", (unsigned)(i + 1));

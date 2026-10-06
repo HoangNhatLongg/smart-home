@@ -80,8 +80,18 @@ esp_err_t sm_hw_relay_set(uint8_t relay_index, bool on)
     const int gpio = hw->relay_gpio[relay_index - 1];
     gpio_set_level(gpio, on ? on_level(hw->relay_active_high) : off_level(hw->relay_active_high));
 
-    /* Read back the pin so the reported state is the applied state. */
-    s_state[relay_index - 1] = (gpio_get_level(gpio) == on_level(hw->relay_active_high));
+    /* Relay boards normally do not expose a contact-feedback signal.  The
+     * authoritative software State is therefore the command successfully
+     * applied to the output pin, not an electrical read-back which can be
+     * inverted by an active-low board or its transistor stage. */
+    const int read_back = gpio_get_level(gpio);
+    const int expected_level = on ? on_level(hw->relay_active_high)
+                                  : off_level(hw->relay_active_high);
+    if (read_back != expected_level) {
+        ESP_LOGW(TAG, "relay_%u GPIO%d read-back=%d, expected=%d; reporting requested state",
+                 relay_index, gpio, read_back, expected_level);
+    }
+    s_state[relay_index - 1] = on;
 
     ESP_LOGI(TAG, "relay_%u (GPIO%d) -> %s", relay_index, gpio, s_state[relay_index - 1] ? "BẬT" : "TẮT");
 
@@ -97,10 +107,7 @@ bool sm_hw_relay_get(uint8_t relay_index)
         return false;
     }
 
-    const sm_hw_config_t *hw = sm_hw_config();
-    const int gpio = hw->relay_gpio[relay_index - 1];
-    const bool level = (gpio_get_level(gpio) == on_level(hw->relay_active_high));
-
-    s_state[relay_index - 1] = level;
-    return level;
+    /* This is a logical command state.  Physical contact feedback would need
+     * a separate sensor capability, which a standard one-way relay has not. */
+    return s_state[relay_index - 1];
 }

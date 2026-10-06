@@ -2,7 +2,32 @@
 
 ## Mục đích và phạm vi
 
-Backend dùng Next.js, PostgreSQL/Prisma, MQTT.js và EMQX. Bản hiện tại hoàn thành Phase 1–3: Auth, Home/Room/Device, Capability Registry, MQTT availability/capability/telemetry/state, command confirmation và retry. Configuration, Automation, OTA, Voice thuộc Phase 4–5 và chưa có API.
+Backend dùng Next.js, PostgreSQL/Prisma, MQTT.js và EMQX. Bản hiện tại có Auth, Home/Room/Device, ghép nối ESP, Capability Registry, MQTT availability/capability/telemetry/state, command confirmation/retry, desired/applied configuration, metadata relay và cập nhật MQTT broker cho node đã ghép nối. Automation, OTA và Voice vẫn cần kiểm thử end-to-end trước khi coi là hoàn thành demo.
+
+## Ghép nối ESP mới
+
+1. Chạy migration bằng `npx prisma migrate deploy` rồi khởi động lại Backend.
+2. Đặt `MQTT_DEVICE_USERNAME` và `MQTT_DEVICE_PASSWORD` trong `.env` nếu EMQX
+   yêu cầu xác thực. Backend chỉ trả các giá trị này cho ESP có device secret.
+3. Ở trang `192.168.4.1`, nhập Backend URL bằng IP LAN của máy chạy Backend
+   (ví dụ `http://192.168.1.10:3001`), Wi-Fi và GPIO. Ghi mã ghép nối.
+4. Đợi ESP kết nối Wi-Fi. Trên Dashboard → Thiết bị → Thêm thiết bị, nhập mã,
+   đặt tên, chọn nhà/phòng và nhập URI broker ESP có thể truy cập
+   (ví dụ `mqtt://192.168.1.10:1883`; không dùng `localhost`).
+5. ESP nhận cấu hình qua REST, khởi động lại và gửi availability/capability
+   trên topic MQTT hiện có. Có thể đổi URI ở cuối trang Thiết bị; ESP đang có
+   Wi-Fi sẽ tự lấy cấu hình mới.
+
+Bootstrap REST chỉ dành cho ESP với secret lưu trong NVS. Mã ghép nối dùng một
+lần. Khi chạy ngoài LAN tin cậy, Backend URL phải dùng HTTPS.
+
+## Cấu hình phần cứng Generic Node
+
+Sau khi thiết bị online, Dashboard → Thiết bị → chọn thiết bị → **Phần cứng và
+GPIO** gửi cấu hình trên topic MQTT `config` hiện có. ESP xác nhận bằng
+`applied_config` rồi tự khởi động lại để áp dụng chân GPIO; do đó không điều
+khiển relay trong vài giây này. Capability Registry phải có `soil_moisture` và
+`motion`; chạy `npm run db:seed` một lần sau khi cập nhật source để thêm chúng.
 
 ## Yêu cầu
 
@@ -85,7 +110,7 @@ Sau logout, GET /api/auth/me trả 401. Login sai password cũng trả 401.
 | POST | /api/auth/logout | Đăng xuất |
 | GET | /api/auth/me | User hiện tại |
 | GET, POST | /api/homes | Liệt kê/tạo Home |
-| GET, PUT | /api/homes/:homeId | Xem/sửa Home |
+| GET, PUT, DELETE | /api/homes/:homeId | Xem/sửa/xóa Home |
 | GET, POST | /api/homes/:homeId/rooms | Liệt kê/tạo Room |
 | PUT, DELETE | /api/rooms/:roomId | Sửa/xóa Room |
 | GET | /api/rooms/:roomId/devices | Device trong Room |
@@ -95,6 +120,12 @@ Sau logout, GET /api/auth/me trả 401. Login sai password cũng trả 401.
 | GET | /api/devices/:deviceId/telemetry | Telemetry; query from, to, limit |
 | GET | /api/devices/:deviceId/state | Current state |
 | GET | /api/devices/:deviceId/state-history | State history |
+| GET, PUT | /api/devices/:deviceId/configuration | Desired/applied configuration, GPIO và metadata relay |
+| GET | /api/devices/:deviceId/configuration/status | Trạng thái applied configuration |
+| PUT | /api/devices/:deviceId/broker | Đổi MQTT URI của node đã ghép nối |
+| POST | /api/devices/pair | Ghép pairing code vào Home/Room |
+| POST | /api/provisioning/register | ESP đăng ký pairing tạm thời |
+| POST | /api/provisioning/bootstrap | ESP lấy Home/Room/MQTT bằng device secret |
 | POST | /api/devices/:deviceId/commands | Tạo relay command |
 | GET | /api/commands/:commandId | Trạng thái command |
 
@@ -104,8 +135,8 @@ Trừ login, mọi API cần session. Authorization kiểm tra Home owner; khôn
 
 Sau khi login:
 
-    $home = Invoke-RestMethod -Uri "$baseUrl/api/homes" -Method POST -ContentType "application/json" -Body '{"name":"Nhà chính"}' -WebSession $session
-    $room = Invoke-RestMethod -Uri "$baseUrl/api/homes/$($home.id)/rooms" -Method POST -ContentType "application/json" -Body '{"name":"Phòng khách"}' -WebSession $session
+    $createdHome = Invoke-RestMethod -Uri "$baseUrl/api/homes" -Method POST -ContentType "application/json" -Body '{"name":"Nhà chính"}' -WebSession $session
+    $createdRoom = Invoke-RestMethod -Uri "$baseUrl/api/homes/$($createdHome.id)/rooms" -Method POST -ContentType "application/json" -Body '{"name":"Phòng khách"}' -WebSession $session
 
 Contract hiện tại không có endpoint tạo Device công khai. Device cần được provision qua database/luồng thiết bị trước khi test MQTT.
 

@@ -67,7 +67,7 @@ const schedule = (delayMs: number, first = false) => {
           schedule(intervalMs);
           return;
         }
-        await run(false);
+        await run(first);
         if (intervalMs > 0) schedule(intervalMs);
       }, delayMs);
     };

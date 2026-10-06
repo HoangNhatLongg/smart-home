@@ -97,7 +97,12 @@ export interface Room {
   id: string;
   homeId: string | null;
   name: string;
+  category: RoomCategory;
+  floor: number | null;
 }
+
+export const ROOM_CATEGORIES = ["living_room", "bedroom", "kitchen", "bathroom", "office", "dining_room", "garage", "outdoor", "other"] as const;
+export type RoomCategory = (typeof ROOM_CATEGORIES)[number];
 
 export interface DeviceCapability {
   /** device_capabilities.instance_code, e.g. `relay_1`, `temperature`. */
@@ -106,6 +111,8 @@ export interface DeviceCapability {
   code: string;
   /** device_capabilities.name, nullable. */
   name: string | null;
+    /** User-facing metadata for a logical peripheral, such as relay kind and note. */
+    config?: Record<string, unknown> | null;
   type: CapabilityType | null;
   dataType: CapabilityDataType | null;
   unit: string | null;

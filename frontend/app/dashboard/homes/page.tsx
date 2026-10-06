@@ -1,18 +1,21 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DataState } from "@/components/ui/DataState";
-import { Badge } from "@/components/ui/StatusBadge";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TextField } from "@/components/ui/Field";
 import { PollBadge } from "@/components/dashboard/PollBadge";
+import { useToast } from "@/components/ui/Toaster";
 import { usePollingResource } from "@/lib/hooks/usePollingResource";
-import { ApiError, createHome, getHome, listHomes } from "@/lib/api";
+import { ApiError, createHome, deleteHome, getHome, listHomes, updateHome } from "@/lib/api";
+import type { Home } from "@/lib/api";
+import { refreshDeviceTree } from "@/lib/hooks/useDeviceTree";
 
 export default function HomesPage() {
+  const { notify } = useToast();
   const resource = usePollingResource(async () => {
     const homes = await listHomes();
     const details = await Promise.all(
@@ -22,9 +25,13 @@ export default function HomesPage() {
   }, { intervalMs: 60_000 });
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Home | null>(null);
+  const [editName, setEditName] = useState("");
+  const [confirmingEdit, setConfirmingEdit] = useState(false);
+  const [deleting, setDeleting] = useState<Home | null>(null);
+  const [mutating, setMutating] = useState(false);
 
   const onCreate = async () => {
     if (!name.trim() || saving) return;
@@ -35,10 +42,47 @@ export default function HomesPage() {
       setName("");
       setCreating(false);
       resource.refresh();
+      refreshDeviceTree();
+      notify({ message: "Đã tạo ngôi nhà", tone: "success" });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Không tạo được ngôi nhà.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onUpdate = async () => {
+    if (!editing || !editName.trim() || mutating) return;
+    setMutating(true);
+    try {
+      await updateHome(editing.id, editName.trim());
+      notify({ message: "Đã cập nhật tên ngôi nhà", tone: "success" });
+      setEditing(null);
+      setConfirmingEdit(false);
+      resource.refresh();
+      refreshDeviceTree();
+    } catch (cause) {
+      notify({ message: cause instanceof ApiError ? cause.message : "Không sửa được ngôi nhà.", tone: "error" });
+      setConfirmingEdit(false);
+      setEditing(editing);
+    } finally {
+      setMutating(false);
+    }
+  };
+
+  const onDelete = async () => {
+    if (!deleting || mutating) return;
+    setMutating(true);
+    try {
+      await deleteHome(deleting.id);
+      notify({ message: `Đã xóa ${deleting.name}`, tone: "success" });
+      setDeleting(null);
+      resource.refresh();
+      refreshDeviceTree();
+    } catch (cause) {
+      notify({ message: cause instanceof ApiError ? cause.message : "Không xóa được ngôi nhà.", tone: "error" });
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -69,22 +113,20 @@ export default function HomesPage() {
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3.5"
             >
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold text-ink">{home.name}</p>
-                  {selected === home.id && <Badge tone="info">Đang chọn</Badge>}
-                </div>
+                <p className="truncate text-sm font-semibold text-ink">{home.name}</p>
                 <p className="mt-0.5 text-xs text-ink-subtle">
                   {detail?.roomCount ?? home.roomCount ?? "—"} phòng ·{" "}
                   {detail?.deviceCount ?? home.deviceCount ?? "—"} thiết bị
                 </p>
               </div>
-              <Button
-                variant={selected === home.id ? "secondary" : "primary"}
-                size="sm"
-                onClick={() => setSelected(home.id)}
-              >
-                {selected === home.id ? "Đang dùng" : "Chọn"}
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button variant="ghost" size="sm" icon={<Pencil size={14} aria-hidden />} onClick={() => { setEditing(home); setEditName(home.name); }}>
+                  Sửa
+                </Button>
+                <Button variant="ghost" size="sm" icon={<Trash2 size={14} aria-hidden />} onClick={() => setDeleting(home)}>
+                  Xóa
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -117,6 +159,33 @@ export default function HomesPage() {
             {error}
           </p>
         )}
+      </Modal>
+
+      <Modal
+        open={editing !== null && !confirmingEdit}
+        title="Sửa ngôi nhà"
+        onClose={() => setEditing(null)}
+        footer={<><Button variant="secondary" onClick={() => setEditing(null)}>Huỷ</Button><Button disabled={!editName.trim() || mutating} onClick={() => setConfirmingEdit(true)}>Lưu thay đổi</Button></>}
+      >
+        <TextField label="Tên ngôi nhà" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={80} />
+      </Modal>
+
+      <Modal
+        open={confirmingEdit}
+        title="Xác nhận thay đổi"
+        onClose={() => setConfirmingEdit(false)}
+        footer={<><Button variant="secondary" onClick={() => setConfirmingEdit(false)}>Xem lại</Button><Button disabled={mutating} onClick={() => void onUpdate()}>{mutating ? "Đang lưu..." : "Xác nhận sửa"}</Button></>}
+      >
+        <p className="text-sm text-ink-muted">Bạn chắc chắn muốn đổi tên <strong>{editing?.name}</strong> thành <strong>{editName.trim()}</strong> chứ?</p>
+      </Modal>
+
+      <Modal
+        open={deleting !== null}
+        title="Xác nhận xóa ngôi nhà"
+        onClose={() => { if (!mutating) setDeleting(null); }}
+        footer={<><Button variant="secondary" disabled={mutating} onClick={() => setDeleting(null)}>Không xóa</Button><Button variant="danger" disabled={mutating} onClick={() => void onDelete()}>{mutating ? "Đang xóa..." : "Xóa ngôi nhà"}</Button></>}
+      >
+        <p className="text-sm text-ink-muted"><strong>Xóa nhà sẽ xóa tất cả phòng và thiết bị.</strong> Bạn chắc chắn muốn xóa chứ?</p>
       </Modal>
     </div>
   );

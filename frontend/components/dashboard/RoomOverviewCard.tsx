@@ -20,9 +20,11 @@ export function RoomOverviewCard({
   const average = (values: number[]) =>
     values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
   const temperatures = devices
+    .filter((device) => device.status === "online")
     .map((device) => telemetryValueOf(telemetry[device.deviceId], "temperature"))
     .filter((value): value is number => value !== null);
   const humidities = devices
+    .filter((device) => device.status === "online")
     .map((device) => telemetryValueOf(telemetry[device.deviceId], "humidity"))
     .filter((value): value is number => value !== null);
 

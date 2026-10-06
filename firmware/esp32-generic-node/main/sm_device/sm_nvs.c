@@ -61,6 +61,23 @@ esp_err_t sm_nvs_write_str(const char *key, const char *value)
     return nvs_commit(s_handle);
 }
 
+esp_err_t sm_nvs_erase_key(const char *key)
+{
+    esp_err_t err = sm_nvs_open();
+    if (err != ESP_OK) {
+        return err;
+    }
+    err = nvs_erase_key(s_handle, key);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        return ESP_OK;
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_erase_key(%s) thất bại: %s", key, esp_err_to_name(err));
+        return err;
+    }
+    return nvs_commit(s_handle);
+}
+
 esp_err_t sm_nvs_read_u32(const char *key, uint32_t *out)
 {
     esp_err_t err = sm_nvs_open();
@@ -101,4 +118,36 @@ esp_err_t sm_nvs_read_bitmap(const char *key, uint32_t *out)
 esp_err_t sm_nvs_write_bitmap(const char *key, uint32_t value)
 {
     return sm_nvs_write_u32(key, value);
+}
+
+esp_err_t sm_nvs_read_blob(const char *key, void *out, size_t *out_len)
+{
+    esp_err_t err = sm_nvs_open();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    err = nvs_get_blob(s_handle, key, out, out_len);
+    if (err != ESP_OK) {
+        if (err != ESP_ERR_NVS_NOT_FOUND) {
+            ESP_LOGW(TAG, "nvs_get_blob(%s) thất bại: %s", key, esp_err_to_name(err));
+        }
+        return err;
+    }
+    return ESP_OK;
+}
+
+esp_err_t sm_nvs_write_blob(const char *key, const void *value, size_t len)
+{
+    esp_err_t err = sm_nvs_open();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    err = nvs_set_blob(s_handle, key, value, len);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "nvs_set_blob(%s) thất bại: %s", key, esp_err_to_name(err));
+        return err;
+    }
+    return nvs_commit(s_handle);
 }

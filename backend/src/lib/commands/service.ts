@@ -18,8 +18,12 @@ async function send(id: string) {
   const relayNumber = /^relay_(\d+)$/.exec(capability)?.[1];
   if (command.commandType !== 'set_relay' || !relayNumber || typeof payload.state !== 'boolean') { await prisma.command.update({ where: { id }, data: { status: 'FAILED', errorMessage: 'Unsupported command payload', completedAt: new Date() } }); return; }
   try {
-    await mqttService.publish(topic(command.device.room.home.id, command.device.room.id, command.device.deviceId, 'command'), { command_id: command.commandId, timestamp: new Date().toISOString(), command: command.commandType, params: { relay: Number(relayNumber), state: payload.state } }, 1, false);
+    /* Mark SENT before publishing.  A local MQTT broker plus an ESP can return
+       its State confirmation before the publish callback resolves; marking it
+       afterwards loses that confirmation because the state handler only
+       completes commands that are already SENT. */
     await prisma.command.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
+    await mqttService.publish(topic(command.device.room.home.id, command.device.room.id, command.device.deviceId, 'command'), { command_id: command.commandId, timestamp: new Date().toISOString(), command: command.commandType, params: { relay: Number(relayNumber), state: payload.state } }, 1, false);
     scheduleTimeout(id);
   } catch (cause) { console.error('MQTT command publish failure', cause); await prisma.command.update({ where: { id }, data: { status: 'FAILED', errorMessage: 'MQTT publish failed', completedAt: new Date() } }); }
 }

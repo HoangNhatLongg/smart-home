@@ -10,6 +10,8 @@ const CAPABILITY_LABELS: Record<string, string> = {
   relay: "Rơ-le",
   temperature: "Nhiệt độ",
   humidity: "Độ ẩm",
+  soil_moisture: "Độ ẩm đất",
+  motion: "Chuyển động",
 };
 
 export interface DeviceCardProps {
@@ -20,7 +22,10 @@ export interface DeviceCardProps {
 }
 
 export function DeviceCard({ device, state, telemetry, tracker }: DeviceCardProps) {
-  const relays = device.capabilities.filter((capability) => capability.code === "relay");
+  const visibleCapabilities = device.capabilities.filter(
+    (capability) => capability.code !== "relay" || capability.config?.configured !== false,
+  );
+  const relays = visibleCapabilities.filter((capability) => capability.code === "relay");
   const temperature = telemetry?.data.temperature ?? null;
   const humidity = telemetry?.data.humidity ?? null;
   const hasSensors = temperature !== null || humidity !== null;
@@ -65,6 +70,15 @@ export function DeviceCard({ device, state, telemetry, tracker }: DeviceCardProp
           </div>
         )}
 
+        {visibleCapabilities.length > 0 && (
+          <div className="border-t border-line pt-3">
+            <p className="text-xs font-medium text-ink-muted">Thiết bị gắn với ESP node</p>
+            <p className="mt-1 text-xs text-ink-subtle">
+              {visibleCapabilities.map((capability) => capability.name ?? CAPABILITY_LABELS[capability.code] ?? capability.instanceCode).join(" · ")}
+            </p>
+          </div>
+        )}
+
         <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line pt-3 text-xs text-ink-subtle">
           <div className="flex items-baseline gap-1.5">
             <dt>Phiên bản</dt>
@@ -76,11 +90,11 @@ export function DeviceCard({ device, state, telemetry, tracker }: DeviceCardProp
               {device.lastSeenAt ? formatRelativeTime(device.lastSeenAt) : "Chưa có"}
             </dd>
           </div>
-          {device.capabilities.length > 0 && (
+          {visibleCapabilities.length > 0 && (
             <div className="flex items-baseline gap-1.5">
               <dt>Cảm biến</dt>
               <dd className="text-ink-muted">
-                {device.capabilities
+                {visibleCapabilities
                   .filter((capability) => capability.code !== "relay")
                   .map(
                     (capability) =>

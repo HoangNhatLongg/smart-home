@@ -80,9 +80,15 @@ updated_at TIMESTAMPTZ NOT NULL
 id UUID PK
 home_id UUID FK -> homes.id
 name VARCHAR NOT NULL
+category VARCHAR NOT NULL
+floor INTEGER NULL
 created_at TIMESTAMPTZ NOT NULL
 updated_at TIMESTAMPTZ NOT NULL
 ```
+
+Allowed `category`: `living_room`, `bedroom`, `kitchen`, `bathroom`, `office`,
+`dining_room`, `garage`, `outdoor`, `other`. `name` is user-defined; MQTT uses
+the immutable Room UUID, never a room name or category.
 
 ### devices
 
@@ -100,6 +106,26 @@ updated_at TIMESTAMPTZ NOT NULL
 
 Allowed status: - `online` - `offline` - `unknown`
 
+### device_pairings
+
+``` text
+id UUID PK
+device_id VARCHAR UNIQUE NOT NULL
+device_secret_hash VARCHAR NOT NULL
+pairing_code_hash VARCHAR UNIQUE NOT NULL
+status VARCHAR NOT NULL (pending, paired)
+expires_at TIMESTAMPTZ NOT NULL
+device_record_id UUID NULL UNIQUE FK -> devices.id ON DELETE CASCADE
+mqtt_uri VARCHAR NULL
+created_at TIMESTAMPTZ NOT NULL
+paired_at TIMESTAMPTZ NULL
+```
+
+The pairing code is single use and expires after 15 minutes. Only hashes of
+the pairing code and device secret are stored. A pending row is authenticated
+by the device secret; claiming requires an authenticated Home owner. Broker
+credentials come from Backend environment and are returned only to the device.
+
 ### capability_registry
 
 ``` text
@@ -114,7 +140,8 @@ created_at TIMESTAMPTZ NOT NULL
 ```
 
 Initial records: - `temperature`, `sensor`, `number`, `°C` - `humidity`,
-`sensor`, `number`, `%` - `relay`, `actuator`, `boolean`, NULL
+`sensor`, `number`, `%` - `soil_moisture`, `sensor`, `number`, `%` -
+`motion`, `sensor`, `boolean`, NULL - `relay`, `actuator`, `boolean`, NULL
 
 ### device_capabilities
 
@@ -135,6 +162,10 @@ Unique constraint:
 ```
 
 Examples: - `temperature` - `humidity` - `relay_1` - `relay_2`
+
+For a relay, `config` stores optional Dashboard metadata such as
+`{ "kind": "light", "description": "Đèn trần" }`. Its `instance_code`
+remains the stable command identifier (`relay_1`, `relay_2`, ...).
 
 ### device_configurations
 

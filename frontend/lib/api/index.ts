@@ -18,3 +18,4 @@ export * from "./configuration";
 export * from "./automation";
 export * from "./ota";
 export * from "./voice";
+export * from "./pairing";

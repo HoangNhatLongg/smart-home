@@ -16,13 +16,25 @@ export function TelemetryPanel({
   return (
     <Section
       title="Số đo môi trường"
-      description="Nhiệt độ và độ ẩm mà thiết bị gửi lên gần nhất."
+      description="Các số đo môi trường gần nhất từ những cảm biến đang bật."
     >
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
         <div>
           <dt className="text-xs text-ink-subtle">Nhiệt độ</dt>
           <dd className="mt-0.5 text-[15px] font-semibold text-ink">
             {formatTemperature(latest?.data.temperature ?? null)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-ink-subtle">Độ ẩm đất</dt>
+          <dd className="mt-0.5 text-[15px] font-semibold text-ink">
+            {typeof latest?.data.soil_moisture === "number" ? `${latest.data.soil_moisture.toFixed(1)}%` : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-ink-subtle">Chuyển động</dt>
+          <dd className="mt-0.5 text-[15px] font-semibold text-ink">
+            {typeof latest?.data.motion === "boolean" ? (latest.data.motion ? "Phát hiện" : "Không") : "—"}
           </dd>
         </div>
         <div>

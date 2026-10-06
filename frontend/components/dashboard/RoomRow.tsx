@@ -23,12 +23,14 @@ export interface RoomRowProps {
 export function RoomRow({ roomId, roomName, devices, states, telemetry, tracker }: RoomRowProps) {
   const online = devices.filter((device) => device.status === "online").length;
   const relayDevices = devices.filter((device) =>
-    device.capabilities.some((capability) => capability.code === "relay"),
+    device.capabilities.some((capability) => capability.code === "relay" && capability.config?.configured !== false),
   );
   const temperatures = devices
+    .filter((device) => device.status === "online")
     .map((device) => telemetryValueOf(telemetry[device.deviceId], "temperature"))
     .filter((value): value is number => value !== null);
   const humidities = devices
+    .filter((device) => device.status === "online")
     .map((device) => telemetryValueOf(telemetry[device.deviceId], "humidity"))
     .filter((value): value is number => value !== null);
   const average = (values: number[]): number | null =>

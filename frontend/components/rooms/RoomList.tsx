@@ -1,10 +1,24 @@
 import Link from "next/link";
+import { Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Device, Room } from "@/lib/api/contract";
 
+const CATEGORY_LABELS: Record<Room["category"], string> = {
+  living_room: "Phòng khách",
+  bedroom: "Phòng ngủ",
+  kitchen: "Nhà bếp",
+  bathroom: "Phòng tắm",
+  office: "Phòng làm việc",
+  dining_room: "Phòng ăn",
+  garage: "Gara",
+  outdoor: "Ngoài trời",
+  other: "Khác",
+};
+
 /** One `Section` per room; devices are `divide-y` rows instead of nested cards. */
-export function RoomList({ rooms, devices }: { rooms: Room[]; devices: Device[] }) {
+export function RoomList({ rooms, devices, onEdit, onDelete }: { rooms: Room[]; devices: Device[]; onEdit?: (room: Room) => void; onDelete?: (room: Room) => void }) {
   return (
     <div className="space-y-4">
       {rooms.map((room) => {
@@ -15,7 +29,8 @@ export function RoomList({ rooms, devices }: { rooms: Room[]; devices: Device[] 
             key={room.id}
             id={room.id}
             title={room.name}
-            description={`${roomDevices.length} thiết bị · ${online} đang hoạt động`}
+            description={`${CATEGORY_LABELS[room.category]}${room.floor === null ? "" : ` · Tầng ${room.floor}`} · ${roomDevices.length} thiết bị · ${online} đang hoạt động`}
+            actions={(onEdit || onDelete) && <div className="flex gap-1">{onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit(room)} icon={<Pencil size={14} />}>Sửa</Button>}{onDelete && <Button size="sm" variant="ghost" onClick={() => onDelete(room)} icon={<Trash2 size={14} />}>Xóa</Button>}</div>}
             flush
           >
             {roomDevices.length === 0 ? (

@@ -44,9 +44,9 @@ export const createHomes = (): Home[] => [
 ];
 
 export const createRooms = (): Room[] => [
-  { id: MOCK_ROOM_LIVING, homeId: MOCK_HOME_ID, name: "Phòng khách" },
-  { id: MOCK_ROOM_BEDROOM, homeId: MOCK_HOME_ID, name: "Phòng ngủ" },
-  { id: MOCK_ROOM_KITCHEN, homeId: MOCK_HOME_ID, name: "Bếp" },
+  { id: MOCK_ROOM_LIVING, homeId: MOCK_HOME_ID, name: "Phòng khách", category: "living_room", floor: 1 },
+  { id: MOCK_ROOM_BEDROOM, homeId: MOCK_HOME_ID, name: "Phòng ngủ", category: "bedroom", floor: 1 },
+  { id: MOCK_ROOM_KITCHEN, homeId: MOCK_HOME_ID, name: "Bếp", category: "kitchen", floor: 1 },
 ];
 
 interface DeviceSeed {

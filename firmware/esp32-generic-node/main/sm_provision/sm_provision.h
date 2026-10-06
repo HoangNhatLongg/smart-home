@@ -1,5 +1,6 @@
-/* Wi-Fi provisioning portal: the node opens its own access point so a phone can
- * submit the home network credentials without reflashing. */
+/* Wi-Fi + device setup portal: when the node has no credentials in NVS it opens
+ * its own access point and serves a web form for Wi-Fi, identity, hardware and
+ * broker settings. One binary then fits every node in the house. */
 #pragma once
 
 #include "esp_err.h"
@@ -8,11 +9,11 @@
 extern "C" {
 #endif
 
-/* Starts SoftAP + HTTP portal. Call instead of the STA path when no Wi-Fi
- * credentials are stored in NVS. */
+/* Starts SoftAP + HTTP portal. Call instead of the STA path when the node has
+ * not been provisioned yet. */
 esp_err_t sm_provision_start(void);
 
-/* Called after credentials are stored so the node reboots into STA mode. */
+/* Called after settings are stored so the node reboots and applies them. */
 esp_err_t sm_provision_schedule_restart(void);
 
 #ifdef __cplusplus

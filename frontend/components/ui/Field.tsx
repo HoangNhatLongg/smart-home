@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 interface FieldShellProps {
@@ -35,19 +36,24 @@ export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string | null;
 }
 
-export function TextField({ label, hint, error, id, className = "", ...rest }: TextFieldProps) {
-  const inputId = id ?? `field-${label.replace(/\s+/g, "-").toLowerCase()}`;
-  return (
-    <FieldShell label={label} hint={hint} error={error} htmlFor={inputId}>
-      <input
-        id={inputId}
-        className={`${controlClass} ${className}`}
-        aria-invalid={error ? true : undefined}
-        {...rest}
-      />
-    </FieldShell>
-  );
-}
+export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
+  ({ label, hint, error, id, className = "", ...rest }, ref) => {
+    const inputId = id ?? `field-${label.replace(/\s+/g, "-").toLowerCase()}`;
+    return (
+      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId}>
+        <input
+          ref={ref}
+          id={inputId}
+          className={`${controlClass} ${className}`}
+          aria-invalid={error ? true : undefined}
+          {...rest}
+        />
+      </FieldShell>
+    );
+  },
+);
+
+TextField.displayName = "TextField";
 
 export interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;

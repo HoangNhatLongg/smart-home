@@ -23,6 +23,8 @@ const CAPABILITY_LABELS: Record<string, string> = {
   relay: "Rơ-le",
   temperature: "Nhiệt độ",
   humidity: "Độ ẩm",
+  soil_moisture: "Độ ẩm đất",
+  motion: "Chuyển động",
 };
 
 export default function DeviceDetailPage() {
@@ -143,7 +145,11 @@ export default function DeviceDetailPage() {
             <ConfigurationPanel
               device={device}
               configuration={configResource.data}
-              onRefresh={configResource.refresh}
+              onRefresh={() => {
+                configResource.refresh();
+                deviceResource.refresh();
+                tree.refresh();
+              }}
             />
           )}
         </div>

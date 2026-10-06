@@ -15,6 +15,10 @@ extern "C" {
  */
 esp_err_t sm_wifi_start(void);
 
+/* Opens the local setup portal without joining the saved Wi-Fi network.
+ * Used to recover from invalid persisted hardware configuration. */
+esp_err_t sm_wifi_start_recovery_portal(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -5,5 +5,5 @@ idf_component_register(
          "sm_topic.c"
          "sm_nvs.c"
     INCLUDE_DIRS "."
-    REQUIRES nvs_flash esp_timer json esp_netif
+    REQUIRES nvs_flash esp_timer json esp_netif esp_hw_support
 )

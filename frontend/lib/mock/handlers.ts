@@ -364,11 +364,16 @@ export const ROUTES: { method: string; pattern: RegExp; handler: Handler; public
     handler: (store, request, params) => {
       requireOwnedHome(store, decodeURIComponent(params[0]));
       const name = asString(asRecord(request.body).name);
+      const category = asString(asRecord(request.body).category);
+      const floor = asRecord(request.body).floor;
       if (!name) throw new ApiError(422, "Tên phòng là bắt buộc.");
+      if (!category) throw new ApiError(422, "Loại phòng là bắt buộc.");
       const room = {
         id: `room-mock-${store.rooms.length + 1}`,
         homeId: decodeURIComponent(params[0]),
         name,
+        category: category as import("@/lib/api/contract").RoomCategory,
+        floor: typeof floor === "number" ? floor : null,
       };
       store.rooms.push(room);
       return { status: 201, body: room };
@@ -383,8 +388,13 @@ export const ROUTES: { method: string; pattern: RegExp; handler: Handler; public
       if (!room) return notFound("Không tìm thấy phòng.");
       requireOwnedHome(store, room.homeId ?? "");
       const name = asString(asRecord(request.body).name);
+      const category = asString(asRecord(request.body).category);
+      const floor = asRecord(request.body).floor;
       if (!name) throw new ApiError(422, "Tên phòng là bắt buộc.");
+      if (!category) throw new ApiError(422, "Loại phòng là bắt buộc.");
       room.name = name;
+      room.category = category as import("@/lib/api/contract").RoomCategory;
+      room.floor = typeof floor === "number" ? floor : null;
       return { status: 200, body: room };
     },
   },

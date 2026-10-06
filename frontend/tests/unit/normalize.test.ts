@@ -125,6 +125,26 @@ describe("normalizeStateHistory", () => {
 });
 
 describe("normalizeTelemetry", () => {
+  it("puts newest REST reading last without changing values or input order", () => {
+    const rows = [
+      { recordedAt: "2026-10-06T13:35:26Z", data: { temperature: 34, humidity: 66 } },
+      { recordedAt: "2026-10-06T13:34:24Z", data: { temperature: 28, humidity: 66.0999984741211 } },
+    ];
+    const points = normalizeTelemetry(rows);
+    expect(points.map(point => point.data.temperature)).toEqual([28, 34]);
+    expect(points[0].data.humidity).toBe(66.0999984741211);
+    expect(rows[0].data.temperature).toBe(34);
+    expect(normalizeTelemetry([...rows].reverse())).toEqual(points);
+  });
+
+  it("does not let a missing timestamp replace a dated latest reading", () => {
+    const points = normalizeTelemetry([
+      { recordedAt: "2026-10-06T13:35:26Z", data: { temperature: 34 } },
+      { data: { temperature: 10 } },
+    ]);
+    expect(points.at(-1)?.data.temperature).toBe(34);
+  });
+
   it("supports REST recordedAt and MQTT timestamp", () => {
     const rest = normalizeTelemetry([{ data: { temperature: 28.5 }, recordedAt: "2026-10-05T08:00:00Z" }]);
     const mqtt = normalizeTelemetry([{ timestamp: "2026-10-05T08:00:00Z", data: { temperature: 28.5 } }]);

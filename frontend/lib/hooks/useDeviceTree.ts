@@ -6,6 +6,7 @@ import { getDeviceState, getTelemetry, listHomes, listRoomDevices, listRooms } f
 import type { Device, DeviceState, Home, Room, TelemetryPoint } from "@/lib/api/contract";
 
 export interface DeviceTreeSnapshot {
+  homes: Home[];
   home: Home | null;
   rooms: Room[];
   devices: Device[];
@@ -29,6 +30,7 @@ export interface DeviceTreeController extends DeviceTreeState {
 }
 
 const EMPTY_SNAPSHOT: DeviceTreeSnapshot = {
+  homes: [],
   home: null,
   rooms: [],
   devices: [],
@@ -36,14 +38,12 @@ const EMPTY_SNAPSHOT: DeviceTreeSnapshot = {
   telemetry: {},
 };
 
-/** Rooms + devices + state are cheap and change fast; telemetry is slower. */
+/** Refresh the latest reading along with device state on each polling cycle. */
 const TREE_POLL_MS = 10_000;
-const TELEMETRY_MAX_AGE_MS = 30_000;
 const HOME_POLL_MS = 5 * 60_000;
 
 let state: DeviceTreeState = { status: "idle", snapshot: null, error: null, updatedAt: null };
 let lastHomesAt = 0;
-let lastTelemetryAt = 0;
 let inFlight: Promise<void> | null = null;
 let subscribers = 0;
 let pollTimer: ReturnType<typeof setInterval> | undefined;
@@ -64,8 +64,8 @@ function commit(next: DeviceTreeState): void {
   for (const listener of listeners) listener();
 }
 
-async function loadRoomsAndDevices(homeId: string, previous: DeviceTreeSnapshot | null) {
-  const rooms = await listRooms(homeId);
+async function loadRoomsAndDevices(homeIds: string[], previous: DeviceTreeSnapshot | null) {
+  const rooms = (await Promise.all(homeIds.map((homeId) => listRooms(homeId)))).flat();
   const perRoom = await Promise.all(
     rooms.map(async (room) => {
       try {
@@ -99,17 +99,13 @@ async function loadDeviceStates(devices: Device[]): Promise<Record<string, Devic
 async function loadLatestTelemetry(
   devices: Device[],
   previous: DeviceTreeSnapshot | null,
-  force: boolean,
 ): Promise<Record<string, TelemetryPoint | null>> {
   const entries = await Promise.all(
     devices.map(async (device): Promise<[string, TelemetryPoint | null]> => {
       const cached = previous?.telemetry[device.deviceId] ?? null;
-      const cachedAt = cached ? Date.parse(cached.recordedAt) : Number.NaN;
-      const fresh = Number.isFinite(cachedAt) && Date.now() - cachedAt < TELEMETRY_MAX_AGE_MS;
-      if (!force && cached && fresh) return [device.deviceId, cached];
       try {
         const points = await getTelemetry(device.deviceId, { limit: 1 });
-        return [device.deviceId, points[points.length - 1] ?? cached];
+        return [device.deviceId, points[points.length - 1] ?? null];
       } catch {
         return [device.deviceId, cached];
       }
@@ -118,28 +114,26 @@ async function loadLatestTelemetry(
   return Object.fromEntries(entries);
 }
 
-async function loadSnapshot(forceTelemetry: boolean): Promise<void> {
+async function loadSnapshot(forceHomes = false): Promise<void> {
   const previous = state.snapshot ?? EMPTY_SNAPSHOT;
   try {
-    let home = previous.home;
-    if (!home || Date.now() - lastHomesAt > HOME_POLL_MS) {
-      const homes = await listHomes();
+    let homes = previous.homes;
+    if (forceHomes || homes.length === 0 || Date.now() - lastHomesAt > HOME_POLL_MS) {
+      homes = await listHomes();
       lastHomesAt = Date.now();
-      home = homes[0] ?? null;
     }
+    const home = homes[0] ?? null;
     if (!home) {
-      lastTelemetryAt = Date.now();
       commit({ status: "ready", snapshot: EMPTY_SNAPSHOT, error: null, updatedAt: Date.now() });
       return;
     }
 
-    const { rooms, devices } = await loadRoomsAndDevices(home.id, previous);
+    const { rooms, devices } = await loadRoomsAndDevices(homes.map((item) => item.id), previous);
     const [states, telemetry] = await Promise.all([
       loadDeviceStates(devices),
-      loadLatestTelemetry(devices, previous, forceTelemetry),
+      loadLatestTelemetry(devices, previous),
     ]);
-    lastTelemetryAt = Date.now();
-    commit({ status: "ready", snapshot: { home, rooms, devices, states, telemetry }, error: null, updatedAt: Date.now() });
+    commit({ status: "ready", snapshot: { homes, home, rooms, devices, states, telemetry }, error: null, updatedAt: Date.now() });
   } catch (cause) {
     const message =
       cause instanceof ApiError ? cause.message : "Không tải được danh sách thiết bị.";
@@ -152,12 +146,12 @@ async function loadSnapshot(forceTelemetry: boolean): Promise<void> {
   }
 }
 
-function load(forceTelemetry = false): Promise<void> {
+function load(forceHomes = false): Promise<void> {
   if (inFlight) return inFlight;
   if (state.snapshot === null) {
     commit({ ...state, status: "loading", error: null });
   }
-  inFlight = loadSnapshot(forceTelemetry).finally(() => {
+  inFlight = loadSnapshot(forceHomes).finally(() => {
     inFlight = null;
   });
   return inFlight;
@@ -168,7 +162,7 @@ function acquire(): void {
   if (subscribers > 1) return;
   void load();
   pollTimer = setInterval(() => {
-    void load(Date.now() - lastTelemetryAt >= TELEMETRY_MAX_AGE_MS);
+    void load();
   }, TREE_POLL_MS);
 }
 
@@ -186,8 +180,12 @@ export function resetDeviceTree(): void {
   subscribers = 0;
   inFlight = null;
   lastHomesAt = 0;
-  lastTelemetryAt = 0;
   commit({ status: "idle", snapshot: null, error: null, updatedAt: null });
+}
+
+/** Refresh shared data after a mutation performed outside a device-tree page. */
+export function refreshDeviceTree(): void {
+  void load(true);
 }
 
 /** Shared Home → Room → Device tree, fanned out and cached across pages. */
@@ -200,7 +198,7 @@ export function useDeviceTree(): DeviceTreeController {
   }, []);
 
   const refresh = useCallback(() => {
-    void load(false);
+    refreshDeviceTree();
   }, []);
 
   return { ...current, refresh };

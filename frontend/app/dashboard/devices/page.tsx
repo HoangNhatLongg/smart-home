@@ -1,17 +1,21 @@
 "use client";
 
-import { RefreshCw, Search } from "lucide-react";
+import { Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CardGrid } from "@/components/ui/Card";
 import { DataState } from "@/components/ui/DataState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Modal } from "@/components/ui/Modal";
+import { SelectField, TextField } from "@/components/ui/Field";
+import { useToast } from "@/components/ui/Toaster";
 import { PollBadge } from "@/components/dashboard/PollBadge";
 import { CommandFeedback } from "@/components/devices/CommandFeedback";
 import { DeviceCard } from "@/components/devices/DeviceCard";
 import { useDeviceTree } from "@/lib/hooks/useDeviceTree";
 import { useCommandTracker } from "@/lib/hooks/useCommandTracker";
 import type { DeviceStatus } from "@/lib/api/contract";
+import { deleteDevice, pairDevice, updateDeviceBroker } from "@/lib/api";
 
 type Filter = "all" | DeviceStatus;
 
@@ -23,10 +27,20 @@ const FILTERS: { value: Filter; label: string }[] = [
 ];
 
 export default function DevicesPage() {
+  const { notify } = useToast();
   const tree = useDeviceTree();
   const tracker = useCommandTracker({ onConfirmed: tree.refresh });
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [pairingCode, setPairingCode] = useState("");
+  const [deviceName, setDeviceName] = useState("");
+  const [homeId, setHomeId] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [mqttUri, setMqttUri] = useState("");
+  const [brokerDeviceId, setBrokerDeviceId] = useState<string | null>(null);
+  const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const snapshot = tree.snapshot;
   const allDevices = useMemo(() => snapshot?.devices ?? [], [snapshot]);
 
@@ -49,7 +63,7 @@ export default function DevicesPage() {
         title="Thiết bị"
         description="Toàn bộ thiết bị trong nhà. Bật/tắt relay ngay tại đây hoặc mở chi tiết để xem lịch sử."
         meta={<PollBadge updatedAt={tree.updatedAt} busy={tree.status === "loading"} />}
-        actions={
+        actions={<div className="flex gap-2"><Button size="sm" icon={<Plus size={14} />} onClick={() => setAdding(true)}>Thêm thiết bị</Button>
           <Button
             variant="secondary"
             size="sm"
@@ -58,7 +72,7 @@ export default function DevicesPage() {
           >
             Làm mới
           </Button>
-        }
+        </div>}
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -126,6 +140,18 @@ export default function DevicesPage() {
       </DataState>
 
       <CommandFeedback tracker={tracker} states={snapshot?.states ?? {}} devices={allDevices} />
+      <Modal open={adding} title="Ghép nối thiết bị" onClose={() => setAdding(false)} footer={<><Button variant="secondary" onClick={() => setAdding(false)}>Huỷ</Button><Button disabled={busy || !pairingCode || !deviceName.trim() || !homeId || !roomId || !mqttUri.trim()} onClick={async () => { setBusy(true); try { await pairDevice({ pairingCode: pairingCode.trim().toUpperCase(), name: deviceName.trim(), homeId, roomId, mqttUri: mqttUri.trim() }); notify({ message: "Đã ghép nối thiết bị", tone: "success" }); setAdding(false); setPairingCode(""); setDeviceName(""); tree.refresh(); } catch (cause) { notify({ message: cause instanceof Error ? cause.message : "Không ghép nối được", tone: "error" }); } finally { setBusy(false); } }}>{busy ? "Đang ghép nối..." : "Ghép nối"}</Button></>}>
+        <div className="space-y-4"><p className="text-sm text-ink-muted">Nhập mã hiển thị sau khi ESP lưu Wi-Fi. Chọn đúng nhà và phòng cho thiết bị.</p>
+          <TextField label="Mã ghép nối" value={pairingCode} onChange={(event) => setPairingCode(event.target.value.toUpperCase())} maxLength={10} />
+          <TextField label="Tên thiết bị" value={deviceName} onChange={(event) => setDeviceName(event.target.value)} maxLength={64} />
+          <SelectField label="Ngôi nhà" value={homeId} onChange={(event) => { setHomeId(event.target.value); setRoomId(""); }}><option value="">Chọn ngôi nhà</option>{(snapshot?.homes ?? []).map((home) => <option key={home.id} value={home.id}>{home.name}</option>)}</SelectField>
+          <SelectField label="Phòng" value={roomId} onChange={(event) => setRoomId(event.target.value)}><option value="">Chọn phòng</option>{(snapshot?.rooms ?? []).filter((room) => room.homeId === homeId).map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</SelectField>
+          <TextField label="Địa chỉ MQTT broker mà ESP truy cập được" value={mqttUri} onChange={(event) => setMqttUri(event.target.value)} placeholder="mqtt://192.168.1.10:1883" />
+        </div>
+      </Modal>
+      <div className="rounded-lg border border-line bg-surface p-4"><h2 className="font-semibold text-ink">Quản lý kết nối</h2><p className="mt-1 text-sm text-ink-muted">ESP lấy địa chỉ MQTT mới từ Backend khi còn kết nối Wi-Fi.</p><ul className="mt-3 divide-y divide-line">{allDevices.map((device) => <li key={device.deviceId} className="flex flex-wrap items-center justify-between gap-2 py-2"><span className="text-sm font-medium text-ink">{device.name}</span><div className="flex gap-2"><Button variant="secondary" size="sm" onClick={() => { setBrokerDeviceId(device.deviceId); setMqttUri(""); }}>Đổi MQTT</Button><Button variant="ghost" size="sm" icon={<Trash2 size={14} />} onClick={() => setDeletingDeviceId(device.deviceId)}>Bỏ ghép nối</Button></div></li>)}</ul></div>
+      <Modal open={brokerDeviceId !== null} title="Đổi địa chỉ MQTT" onClose={() => setBrokerDeviceId(null)} footer={<><Button variant="secondary" onClick={() => setBrokerDeviceId(null)}>Huỷ</Button><Button disabled={busy || !mqttUri.trim()} onClick={async () => { if (!brokerDeviceId) return; setBusy(true); try { await updateDeviceBroker(brokerDeviceId, mqttUri.trim()); notify({ message: "Đã lưu địa chỉ MQTT mới", tone: "success" }); setBrokerDeviceId(null); } catch (cause) { notify({ message: cause instanceof Error ? cause.message : "Không đổi được broker", tone: "error" }); } finally { setBusy(false); } }}>Lưu</Button></>}><TextField label="MQTT URI" value={mqttUri} onChange={(event) => setMqttUri(event.target.value)} placeholder="mqtt://192.168.1.20:1883" /></Modal>
+      <Modal open={deletingDeviceId !== null} title="Xác nhận bỏ ghép nối" onClose={() => setDeletingDeviceId(null)} footer={<><Button variant="secondary" onClick={() => setDeletingDeviceId(null)}>Không xóa</Button><Button variant="danger" disabled={busy} onClick={async () => { if (!deletingDeviceId) return; setBusy(true); try { await deleteDevice(deletingDeviceId); notify({ message: "Đã bỏ ghép nối thiết bị", tone: "success" }); setDeletingDeviceId(null); tree.refresh(); } catch (cause) { notify({ message: cause instanceof Error ? cause.message : "Không bỏ ghép nối được", tone: "error" }); } finally { setBusy(false); } }}>{busy ? "Đang xóa..." : "Bỏ ghép nối"}</Button></>}><p className="text-sm text-ink-muted">Thao tác này xóa thiết bị cùng dữ liệu telemetry, trạng thái, lệnh và OTA của thiết bị. ESP sẽ trở về trang cấu hình để ghép nối lại. Bạn chắc chắn muốn tiếp tục?</p></Modal>
     </div>
   );
 }
