@@ -198,6 +198,15 @@ menu "Generic IoT Node"
     endmenu
 
     menu "MQTT"
+        config NODE_AVAILABILITY_HEARTBEAT_SECONDS
+            int "Availability heartbeat interval (seconds)"
+            default 30
+            range 10 3600
+            help
+                The node republishes retained online availability at this
+                interval while MQTT is connected. Backend uses it to expire
+                stale online states after a restart or a missed LWT.
+
         config NODE_MQTT_BROKER_URI
             string "MQTT broker URI (EMQX)"
             default ""

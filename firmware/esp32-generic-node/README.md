@@ -1,6 +1,7 @@
 # Generic ESP32-C3 Node Firmware
 
-Firmware dùng chung cho mọi node phần cứng của dự án (DHT11 + 1–2 relay hoặc chỉ DHT11),
+Firmware dùng chung cho mọi node phần cứng của dự án (DHT11, tối đa 8 relay,
+cảm biến đất và PIR),
 bám theo `docs/MQTT_SPEC.md` và `docs/SYSTEM_SPEC.md`.
 
 > Người mới tiếp nhận codebase: đọc **[FIRMWARE_GUIDE.md](FIRMWARE_GUIDE.md)** trước — file này
@@ -12,7 +13,7 @@ bám theo `docs/MQTT_SPEC.md` và `docs/SYSTEM_SPEC.md`.
 | Framework | ESP-IDF **v5.5.5** |
 | Partition | `nvs` + 2 OTA app slots (`1536K` mỗi slot) |
 | App image | 1069840 bytes → còn **32%** trống trong slot (HTTP server của provisioning chiếm phần lớn) |
-| Build | **PASS** (0 error, 0 warning) |
+| Build | `idf.py build` đạt ngày 07/10/2026 trên ESP-IDF v5.5.5 (incremental; chưa flash bản này) |
 | Flash/test phần cứng | **Đã kiểm thử một phần** — Wi-Fi/MQTT, DHT11 và relay đã chạy với ESP32-C3; cảm biến đất và PIR chưa có phần cứng để test |
 
 ## 1. Yêu cầu phần cứng (giả định)

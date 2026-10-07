@@ -50,6 +50,7 @@ export default function AutomationPage() {
   const [error, setError] = useState<string | null>(null);
 
   const onDelete = async (automation: Automation) => {
+    if (!window.confirm(`Xóa tự động hóa "${automation.name}"? Lịch sử chạy của rule này cũng sẽ bị xóa.`)) return;
     setDeletingId(automation.id);
     setError(null);
     try {
@@ -66,7 +67,7 @@ export default function AutomationPage() {
     <div className="space-y-5">
       <PageHeader
         title="Hẹn giờ"
-        description="Thiết bị tự bật hoặc tắt theo lịch cố định trong ngày."
+        description="Bật/tắt relay theo giờ hoặc tưới cây khi cảm biến báo đất khô."
         meta={<PollBadge updatedAt={resource.lastUpdatedAt} busy={resource.loading} />}
         actions={
           <>
@@ -97,7 +98,7 @@ export default function AutomationPage() {
         error={resource.error}
         onRetry={resource.refresh}
         isEmpty={automations.length === 0}
-        emptyMessage="Chưa có lịch nào. Thêm lịch để thiết bị tự hoạt động theo giờ."
+        emptyMessage="Chưa có tự động hóa nào. Thêm lịch hoặc rule tưới theo độ ẩm đất."
       >
         <AutomationList
           automations={automations}

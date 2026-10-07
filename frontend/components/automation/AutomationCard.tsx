@@ -21,6 +21,19 @@ function actionSentence(
   return `${verb} ${target} · ${automation.action.capability}`;
 }
 
+function scheduleSentence(automation: Automation): string {
+  if (automation.schedule.type === "soil_moisture_below") {
+    return `Tưới khi đất < ${automation.schedule.threshold ?? "?"}% · nghỉ ${automation.schedule.cooldownMinutes ?? 60} phút`;
+  }
+  return `Hằng ngày lúc ${automation.schedule.time ?? "--:--"}`;
+}
+
+function shutdownSentence(automation: Automation): string | null {
+  if (automation.action.offAfterMinutes) return `Tự tắt sau ${automation.action.offAfterMinutes} phút`;
+  if (automation.action.offTime) return `Tắt hằng ngày lúc ${automation.action.offTime}`;
+  return null;
+}
+
 export function AutomationCard({
   automation,
   deviceName,
@@ -42,7 +55,7 @@ export function AutomationCard({
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-ink">{automation.name}</h2>
           <p className="mt-0.5 text-xs text-ink-subtle">
-            Hằng ngày lúc {automation.schedule.time}
+            {scheduleSentence(automation)}
           </p>
         </div>
         <Badge tone={automation.enabled ? "ok" : "neutral"}>
@@ -52,6 +65,7 @@ export function AutomationCard({
 
       <div className="flex-1 space-y-3 px-4 py-3.5">
         <p className="text-sm text-ink">{actionSentence(automation, deviceName)}</p>
+        {shutdownSentence(automation) && <p className="text-xs text-ink-subtle">{shutdownSentence(automation)}</p>}
 
         <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
           <div className="flex items-baseline gap-1.5">

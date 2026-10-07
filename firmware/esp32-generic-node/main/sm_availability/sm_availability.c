@@ -4,10 +4,25 @@
 
 #include "cJSON.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "sm_device.h"
 #include "sm_mqtt.h"
 
 static const char *TAG = "availability";
+static bool s_started;
+
+static void availability_task(void *arg)
+{
+    (void)arg;
+    const TickType_t interval = pdMS_TO_TICKS(CONFIG_NODE_AVAILABILITY_HEARTBEAT_SECONDS * 1000U);
+    for (;;) {
+        if (sm_mqtt_is_connected()) {
+            (void)sm_availability_publish_online();
+        }
+        vTaskDelay(interval);
+    }
+}
 
 esp_err_t sm_availability_publish_online(void)
 {
@@ -44,4 +59,19 @@ esp_err_t sm_availability_publish_online(void)
     }
     cJSON_free(payload);
     return err;
+}
+
+esp_err_t sm_availability_start(void)
+{
+    if (s_started) {
+        return ESP_OK;
+    }
+    if (xTaskCreate(availability_task, "availability", 3072, NULL, 4, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Không thể tạo task availability heartbeat");
+        return ESP_ERR_NO_MEM;
+    }
+    s_started = true;
+    ESP_LOGI(TAG, "Đã khởi động heartbeat availability mỗi %u giây",
+             (unsigned)CONFIG_NODE_AVAILABILITY_HEARTBEAT_SECONDS);
+    return ESP_OK;
 }

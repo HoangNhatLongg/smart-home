@@ -14,7 +14,7 @@ export async function createAutomation(
   input: {
     name: string;
     enabled: boolean;
-    schedule: { type: "daily"; time: string };
+    schedule: Automation["schedule"];
     action: { deviceId: string; capability: string; command: string; params: Record<string, unknown> };
   },
 ): Promise<Automation | null> {

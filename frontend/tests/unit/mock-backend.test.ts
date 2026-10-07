@@ -227,7 +227,7 @@ describe("VOICE-01/VOICE-02/VOICE-04", () => {
   it("resolves CONTROL_DEVICE, returns a command id, and the command confirms later", async () => {
     vi.useFakeTimers();
     const result = await sendVoiceCommand("Bật đèn phòng khách");
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
     expect(result.commandId).toMatch(/^cmd-mock-/);
 
     await vi.advanceTimersByTimeAsync(2000);
@@ -237,6 +237,13 @@ describe("VOICE-01/VOICE-02/VOICE-04", () => {
   it("returns no command when the target cannot be resolved", async () => {
     const result = await sendVoiceCommand("Bật đèn garage");
     expect(result.success).toBe(false);
+    expect(result.commandId).toBeNull();
+  });
+
+  it("answers a recent room temperature query without creating a command", async () => {
+    const result = await sendVoiceCommand("Nhiệt độ phòng khách hiện tại bao nhiêu?");
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("nhiệt độ");
     expect(result.commandId).toBeNull();
   });
 });

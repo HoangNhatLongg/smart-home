@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dashboard Smart Home
 
-## Getting Started
+Frontend Next.js cho Home, Room, ESP32 node, telemetry, relay, Automation,
+Configuration, OTA và Voice Web. Tài liệu kiến trúc/kiểm thử để viết báo cáo
+nằm trong [README gốc](../README.md); contract REST ở
+[API_SPEC.md](../docs/API_SPEC.md).
 
-First, run the development server:
+## Chạy với Backend thật
 
-```bash
+Từ thư mục `frontend`:
+
+```powershell
+Copy-Item .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Trong `.env.local`, đặt:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_API_MODE=real
+BACKEND_URL=http://localhost:3001
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Backend chạy ở cổng 3001; Frontend thường ở cổng 3000. Truy cập URL được
+terminal in ra, đăng nhập bằng tài khoản đã có trong Backend. Frontend gọi
+`/api/...` cùng origin; Next.js rewrite chuyển request tới `BACKEND_URL`, giữ
+cookie session. Nếu dùng `mock`, UI chỉ hiển thị dữ liệu giả, không điều khiển
+ESP thật. Khởi động lại Frontend sau khi đổi `.env.local`.
 
-## Learn More
+## Kiểm thử
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+npm run typecheck
+npm test
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Tại trang Giọng nói, nút **Nói** phụ thuộc hỗ trợ Speech Recognition của trình
+duyệt. Ollama trên Backend xử lý văn bản, còn âm thanh trả lời phụ thuộc giọng
+TTS Việt (`vi-VN`) của trình duyệt/hệ điều hành. Bấm **Thử giọng** để kiểm tra
+riêng phần âm thanh; nếu thiếu giọng Việt, trang báo lỗi chứ không dùng giọng
+Anh. Xem [hướng dẫn Voice](../docs/VOICE_INTEGRATION.md).

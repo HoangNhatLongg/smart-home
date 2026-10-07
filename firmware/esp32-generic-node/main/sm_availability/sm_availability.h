@@ -14,6 +14,15 @@ extern "C" {
  */
 esp_err_t sm_availability_publish_online(void);
 
+/**
+ * @brief Start retained online heartbeats while MQTT is connected.
+ *
+ * A heartbeat lets a restarted Backend distinguish an active node from an old
+ * retained online payload. The broker Last Will remains responsible for the
+ * immediate offline state on an unexpected ESP disconnect.
+ */
+esp_err_t sm_availability_start(void);
+
 #ifdef __cplusplus
 }
 #endif

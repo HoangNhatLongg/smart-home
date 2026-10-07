@@ -508,6 +508,15 @@ export function normalizeConfiguration(input: unknown, deviceId: string): Device
 
 function normalizeSchedule(input: unknown): AutomationSchedule {
   const source = toRecord(input);
+  if (source.type === "soil_moisture_below") {
+    return {
+      type: "soil_moisture_below",
+      sensorDeviceId: pickString(source, ["sensorDeviceId", "sensor_device_id"]) ?? "",
+      capability: "soil_moisture",
+      threshold: pickNumber(source, ["threshold"]) ?? 0,
+      cooldownMinutes: pickNumber(source, ["cooldownMinutes", "cooldown_minutes"]) ?? 60,
+    };
+  }
   const time = pickString(source, ["time", "at", "hour"]) ?? "00:00";
   return { type: "daily", time };
 }
@@ -519,6 +528,8 @@ function normalizeAction(input: unknown): AutomationAction {
     capability: pickString(source, ["capability", "instanceCode", "instance_code"]) ?? "",
     command: pickString(source, ["command", "commandType", "command_type"]) ?? "set_relay",
     params: toStringMap(first(source, ["params", "payload"])),
+    offAfterMinutes: pickNumber(source, ["offAfterMinutes", "off_after_minutes"] ) ?? undefined,
+    offTime: pickString(source, ["offTime", "off_time"] ) ?? undefined,
   };
 }
 

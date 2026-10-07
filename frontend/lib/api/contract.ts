@@ -198,9 +198,12 @@ export interface DeviceConfiguration {
 }
 
 export interface AutomationSchedule {
-  /** MVP is schedule-based and `daily` only (SYSTEM_SPEC §11). */
-  type: "daily";
-  time: string;
+  type: "daily" | "soil_moisture_below";
+  time?: string;
+  sensorDeviceId?: string;
+  capability?: "soil_moisture";
+  threshold?: number;
+  cooldownMinutes?: number;
 }
 
 export interface AutomationAction {
@@ -208,6 +211,10 @@ export interface AutomationAction {
   capability: string;
   command: string;
   params: Record<string, unknown>;
+  /** Optional delayed automatic shutdown after a successful ON command. */
+  offAfterMinutes?: number;
+  /** Optional daily shutdown time; valid for daily rules only. */
+  offTime?: string;
 }
 
 export interface Automation {

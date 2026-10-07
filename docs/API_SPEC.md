@@ -353,10 +353,49 @@ Request:
     "command": "set_relay",
     "params": {
       "state": true
-    }
+    },
+    "offAfterMinutes": 10
   }
 }
 ```
+
+When an ON action has `offAfterMinutes` (1–1440), Backend waits until the ESP
+has confirmed the ON command, then sends the normal `set_relay` OFF command
+after that duration. A `daily` rule may alternatively use `offTime: "HH:mm"`
+to dispatch an OFF command at that time every day. Only one of
+`offAfterMinutes` and `offTime` is allowed. Sensor rules may use delayed OFF,
+but not a daily `offTime`.
+
+For a `soil_moisture_below` rule, the action relay must have relay metadata
+`kind: "pump"`. This keeps irrigation relays distinct from lights and fans.
+
+The schedule may instead be a soil-moisture condition:
+
+```json
+{
+  "name": "Tưới khi đất khô",
+  "enabled": true,
+  "schedule": {
+    "type": "soil_moisture_below",
+    "sensorDeviceId": "esp32-c3-garden-sensor",
+    "capability": "soil_moisture",
+    "threshold": 35,
+    "cooldownMinutes": 60
+  },
+  "action": {
+    "deviceId": "esp32-c3-garden-controller",
+    "capability": "relay_1",
+    "command": "set_relay",
+    "params": { "state": true }
+  }
+}
+```
+
+The sensor Device and relay Device must belong to the same owned Home. `threshold`
+is a percentage between 0 and 100. `cooldownMinutes` is 1–1440 and suppresses
+another trigger until it expires. The action schema is intentionally declarative
+so a future AI intent can create or update a rule through these same endpoints;
+AI must still call Backend and never publish MQTT directly.
 
 ### PUT /api/automations/:id
 
@@ -403,7 +442,7 @@ Input after Speech-to-Text:
 }
 ```
 
-Expected internal result:
+Expected internal result for control:
 
 ``` json
 {
@@ -416,7 +455,8 @@ Expected internal result:
 ```
 
 Backend resolves target, validates Home authorization, executes normal
-command flow, and returns:
+command flow and waits up to 20 seconds for matching State. A successful
+response means State confirmed:
 
 ``` json
 {
@@ -427,6 +467,26 @@ command flow, and returns:
 ```
 
 AI must not publish MQTT directly.
+If still pending after 20 seconds, response has `success: false`, a
+`commandId`, and a message saying confirmation has not arrived. Web may keep
+tracking that Command through `GET /api/commands/:commandId`.
+
+For a query such as `"Nhiệt độ phòng khách hiện tại bao nhiêu?"`, Backend
+resolves `QUERY_ENVIRONMENT` and reads the most recent telemetry in the
+authorized Home/Room. Response uses the same shape with `commandId: null` and
+contains the value and sample time in `message`. If the sample is older than
+5 minutes, `success` is false and the message explains that no current reading
+is available. Ambiguous room or relay names return a clarification without
+creating a command.
+
+### POST /api/voice/xiaozhi
+
+Same request and response shapes as `/api/voice/command`. This endpoint uses
+`Authorization: Bearer <robot token>` and is restricted to the Home configured
+for that token. It never accepts a Home ID from the caller. Missing/invalid
+token returns `401`; missing, malformed or unknown `XIAOZHI_HOME_ID` returns
+`503`. The robot
+token is distinct from the web session and MQTT credentials.
 
 ## 13a. Device pairing and bootstrap
 

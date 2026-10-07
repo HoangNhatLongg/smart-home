@@ -822,6 +822,25 @@ export const ROUTES: { method: string; pattern: RegExp; handler: Handler; public
       const text = asString(asRecord(request.body).text);
       if (!text) throw new ApiError(400, "Nội dung giọng nói trống.");
       const normalized = normalizeText(text);
+      const wantsTemperature = normalized.includes("nhiet do");
+      const wantsHumidity = normalized.includes("do am") || normalized.includes("am do");
+      if (wantsTemperature || wantsHumidity) {
+        const rooms = store.rooms.filter((room) => normalized.includes(normalizeText(room.name)));
+        if (rooms.length !== 1) {
+          return { status: 200, body: { success: false, message: "Hãy nói rõ tên phòng cần hỏi.", commandId: null } satisfies VoiceCommandResult };
+        }
+        const room = rooms[0];
+        const samples = store.devices.filter((device) => device.roomId === room.id)
+          .flatMap((device) => store.telemetry[device.deviceId] ?? [])
+          .sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt));
+        const requested = [wantsTemperature && "temperature", wantsHumidity && "humidity"].filter((key): key is string => !!key);
+        const readings = requested.map((key) => samples.find((point) => typeof point.data[key] === "number"));
+        if (readings.some((point) => !point) || readings.some((point) => Date.now() - Date.parse(point!.recordedAt) > 5 * 60_000)) {
+          return { status: 200, body: { success: false, message: `${room.name} chưa có số đo mới trong 5 phút.`, commandId: null } satisfies VoiceCommandResult };
+        }
+        const values = requested.map((key, index) => `${key === "temperature" ? "nhiệt độ" : "độ ẩm"} ${readings[index]!.data[key]} ${key === "temperature" ? "độ C" : "phần trăm"}`);
+        return { status: 200, body: { success: true, message: `${room.name} hiện có ${values.join(" và ")}.`, commandId: null } satisfies VoiceCommandResult };
+      }
       const wantsOn = /\bbat\b|\bon\b/.test(normalized);
       const wantsOff = /\btat\b|\boff\b/.test(normalized);
       if (!wantsOn && !wantsOff) {
@@ -832,36 +851,25 @@ export const ROUTES: { method: string; pattern: RegExp; handler: Handler; public
         };
         return { status: 200, body: result };
       }
-      const device = store.devices.find((item) =>
-        item.capabilities.some((capability) => {
-          if (capability.code !== "relay") return false;
-          const label = normalizeText(
-            `${capability.name ?? ""} ${capability.instanceCode}`,
-          );
-          const tokens = label.split(/\s+/).filter(Boolean);
-          // The phrase matches outright; otherwise a distinctive (>= 4 chars)
-          // token from the relay name has to appear in the spoken text.
-          if (normalized.includes(label)) return true;
-          return tokens.some((token) => token.length >= 4 && normalized.includes(token));
-        }),
-      );
-      if (!device) {
+      const matches = store.devices.flatMap((device) => device.capabilities
+        .filter((capability) => capability.code === "relay" && capability.name && normalized.includes(normalizeText(capability.name)))
+        .map((capability) => ({ device, capability })));
+      if (matches.length !== 1) {
         const result: VoiceCommandResult = {
           success: false,
-          message: "Không tìm thấy thiết bị phù hợp với yêu cầu.",
+          message: matches.length ? "Có nhiều relay phù hợp; hãy nói rõ hơn." : "Không tìm thấy relay phù hợp với yêu cầu.",
           commandId: null,
         };
         return { status: 200, body: result };
       }
-      const relay = device.capabilities.find((capability) => capability.code === "relay")!;
+      const { device, capability: relay } = matches[0];
       const command = createCommand(store, device.deviceId, "set_relay", {
         capability: relay.instanceCode,
         state: wantsOn,
       });
-      // AI must never publish MQTT; the Backend runs the normal command flow.
       const result: VoiceCommandResult = {
-        success: true,
-        message: `${wantsOn ? "Đã bật" : "Đã tắt"} ${relay.name ?? device.name}.`,
+        success: false,
+        message: `Đã gửi lệnh ${wantsOn ? "bật" : "tắt"} ${relay.name ?? device.name}, đang chờ thiết bị xác nhận.`,
         commandId: command.commandId,
       };
       return { status: 200, body: result };

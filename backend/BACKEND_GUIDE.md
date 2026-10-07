@@ -2,7 +2,7 @@
 
 ## Mục đích và phạm vi
 
-Backend dùng Next.js, PostgreSQL/Prisma, MQTT.js và EMQX. Bản hiện tại có Auth, Home/Room/Device, ghép nối ESP, Capability Registry, MQTT availability/capability/telemetry/state, command confirmation/retry, desired/applied configuration, metadata relay và cập nhật MQTT broker cho node đã ghép nối. Automation, OTA và Voice vẫn cần kiểm thử end-to-end trước khi coi là hoàn thành demo.
+Backend dùng Next.js, PostgreSQL/Prisma, MQTT.js và EMQX. Bản hiện tại có Auth, Home/Room/Device, ghép nối ESP, Capability Registry, MQTT availability/capability/telemetry/state, command confirmation/retry, desired/applied configuration, metadata relay, Automation, OTA API và Voice. Ollama chỉ phân loại ý định từ Web; không được truy cập MQTT trực tiếp. Automation, OTA, Voice và trạng thái online sau khi Backend restart vẫn cần kiểm thử end-to-end trước khi coi là hoàn thành demo.
 
 ## Ghép nối ESP mới
 
@@ -42,6 +42,9 @@ Mở PowerShell:
     Copy-Item .env.example .env
     npm install
 
+Chỉ sao chép `.env.example` trong lần cài đầu; không ghi đè `.env` đã có
+database URL, token và secret. Không đưa `.env` lên GitHub.
+
 Mở file .env và cấu hình:
 
     DATABASE_URL="postgresql://postgres:postgres@localhost:5432/smarthome?schema=public"
@@ -49,6 +52,9 @@ Mở file .env và cấu hình:
     AUTH_SECRET="mot-chuoi-bi-mat-dai-va-ngau-nhien"
     COMMAND_TIMEOUT_MS="5000"
     COMMAND_MAX_RETRIES="2"
+    AUTOMATION_TIMEZONE="Asia/Ho_Chi_Minh"
+    DEVICE_OFFLINE_TIMEOUT_MS="90000"
+    DEVICE_ONLINE_FRESHNESS_MS="90000"
 
 Không dùng AUTH_SECRET mẫu ở môi trường thật.
 
@@ -63,12 +69,14 @@ EMQX Dashboard là http://localhost:18083. PostgreSQL được xuất ra cổng 
 
 ## Migration và seed
 
-Tạo migration, áp dụng schema và thêm dữ liệu khởi tạo:
+Áp dụng các migration đã có và thêm dữ liệu khởi tạo:
 
-    npm run db:migrate -- --name init
+    npx prisma migrate deploy
     npm run db:seed
 
-Seed tạo Capability Registry: temperature (number, °C), humidity (number, %) và relay (boolean). Nó cũng tạo user demo user@example.com với password ChangeMe123!.
+Seed tạo Capability Registry: `temperature`, `humidity`, `soil_moisture`,
+`motion` và `relay`. Nó cũng tạo user demo `user@example.com` với password
+`ChangeMe123!` nếu chưa tồn tại. Chỉ dùng tài khoản mẫu ở local.
 
 Chỉ dùng user demo ở local. Có thể đặt SEED_USER_EMAIL và SEED_USER_PASSWORD trước khi chạy seed.
 
@@ -77,6 +85,10 @@ Chỉ dùng user demo ở local. Có thể đặt SEED_USER_EMAIL và SEED_USER_
     npm run dev
     npm run typecheck
     npm run build
+
+Nếu Windows báo `EPERM` khi `prisma generate` thay DLL đang được Backend sử
+dụng, dừng Backend trước khi generate/build. Để kiểm tra TypeScript mà không
+generate lại Prisma client, chạy `npx tsc --noEmit`.
 
 Terminal in ra URL thực tế. Nếu port 3000 bận, Next.js có thể chuyển sang 3001; dùng đúng port đó trong các request bên dưới.
 
@@ -128,6 +140,14 @@ Sau logout, GET /api/auth/me trả 401. Login sai password cũng trả 401.
 | POST | /api/provisioning/bootstrap | ESP lấy Home/Room/MQTT bằng device secret |
 | POST | /api/devices/:deviceId/commands | Tạo relay command |
 | GET | /api/commands/:commandId | Trạng thái command |
+| GET, POST | /api/homes/:homeId/automations | Danh sách/tạo rule |
+| PUT, DELETE | /api/automations/:id | Sửa/xóa rule |
+| GET | /api/automations/:id/logs | Lịch sử thực thi |
+| GET | /api/firmware | Firmware khả dụng |
+| GET, POST | /api/devices/:deviceId/ota | OTA của thiết bị/tạo job |
+| GET | /api/ota/:jobId | Trạng thái OTA job |
+| POST | /api/voice/command | Voice Web (session) |
+| POST | /api/voice/xiaozhi | Voice robot (Bearer token + Home cấu hình) |
 
 Trừ login, mọi API cần session. Authorization kiểm tra Home owner; không sở hữu Home sẽ trả 403.
 
@@ -136,9 +156,11 @@ Trừ login, mọi API cần session. Authorization kiểm tra Home owner; khôn
 Sau khi login:
 
     $createdHome = Invoke-RestMethod -Uri "$baseUrl/api/homes" -Method POST -ContentType "application/json" -Body '{"name":"Nhà chính"}' -WebSession $session
-    $createdRoom = Invoke-RestMethod -Uri "$baseUrl/api/homes/$($createdHome.id)/rooms" -Method POST -ContentType "application/json" -Body '{"name":"Phòng khách"}' -WebSession $session
+    $createdRoom = Invoke-RestMethod -Uri "$baseUrl/api/homes/$($createdHome.id)/rooms" -Method POST -ContentType "application/json" -Body '{"name":"Phòng khách","category":"living_room","floor":1}' -WebSession $session
 
-Contract hiện tại không có endpoint tạo Device công khai. Device cần được provision qua database/luồng thiết bị trước khi test MQTT.
+ESP tự đăng ký pairing qua `POST /api/provisioning/register`; người dùng
+nhập pairing code trên Dashboard hoặc gọi `POST /api/devices/pair` để tạo Device
+thuộc Room. Không tự chèn Device trực tiếp vào database khi demo.
 
 ## MQTT
 
@@ -150,6 +172,7 @@ Backend subscribe các topic sau:
 | smarthome/{home_id}/{room_id}/{device_id}/state | 1 | Current state/history, xác nhận command |
 | smarthome/{home_id}/{room_id}/{device_id}/availability | 1 | Cập nhật online/offline |
 | smarthome/{home_id}/{room_id}/{device_id}/capability | 1 | Đồng bộ registry capability |
+| smarthome/{home_id}/{room_id}/{device_id}/config | 1 | Nhận applied configuration từ ESP |
 
 Backend publish command vào topic smarthome/{home_id}/{room_id}/{device_id}/command, QoS 1, không retained. home_id là UUID Home, room_id là UUID Room, device_id là trường devices.device_id như esp32-c3-001.
 
@@ -166,6 +189,7 @@ State xác nhận:
     {"command_id":"command-id-tu-backend","timestamp":"2026-10-05T08:00:05Z","state":{"relay_1":true}}
 
 MQTT publish thành công không làm command SUCCESS. Chỉ state cùng command_id và đúng relay state mới xác nhận SUCCESS.
+Backend publish `command`, `config` và `ota` theo đúng `docs/MQTT_SPEC.md`.
 
 ## Test relay command
 
@@ -177,6 +201,45 @@ Device cần online, có capability relay_1 và firmware cần publish State xá
 
 API ban đầu trả PENDING. Backend gửi command, chờ State, retry tối đa theo COMMAND_MAX_RETRIES rồi đặt SUCCESS, FAILED hoặc TIMEOUT.
 
+## Automation Scheduler
+
+Scheduler được khởi động cùng Backend và kiểm tra lịch mỗi 15 giây. Rule `daily`
+chạy theo `AUTOMATION_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`). Rule
+`soil_moisture_below` được đánh giá khi Backend nhận telemetry mới có trường
+`soil_moisture`; `cooldownMinutes` dùng Automation Log để chống kích hoạt bơm
+lặp lại. Cả hai loại rule đều gọi `createAndSendCommand`, nên dùng chung kiểm
+tra online, MQTT command, State confirmation và retry với Dashboard/Voice AI.
+
+## Availability sau khi Backend khởi động lại
+
+Backend chủ động chuyển các bản ghi `online` cũ thành `offline` lúc khởi động.
+ESP firmware gửi heartbeat availability retained mỗi 30 giây; chỉ heartbeat có
+timestamp còn mới hơn `DEVICE_ONLINE_FRESHNESS_MS` mới được công nhận là online.
+Nếu `last_seen_at` không đổi quá `DEVICE_OFFLINE_TIMEOUT_MS`, Backend chuyển
+node sang offline. Vì vậy không có trường hợp payload retained cũ làm ESP đã
+tắt vẫn hiện online sau khi Backend chạy lại.
+
+Nếu ESP log `online (1970-01-01...)`, Backend cố ý bỏ qua vì đó là thời gian
+trước khi SNTP đồng bộ. Kiểm tra log `Đã đồng bộ thời gian hệ thống`, đợi
+heartbeat mới (mặc định 30 giây) và tìm cảnh báo Backend
+`Ignoring stale retained online availability`. MQTT connected của ESP không
+đồng nghĩa Backend đã xác nhận availability.
+
+## Voice Web và giọng đọc
+
+Trong `.env`, đặt `VOICE_PROVIDER=ollama`, `OLLAMA_URL` (mặc định
+`http://127.0.0.1:11434`) và `OLLAMA_MODEL=qwen2.5:1.5b-instruct`. Model chạy
+cục bộ trên máy Backend; tải bằng `ollama pull qwen2.5:1.5b-instruct` nếu chưa
+có. Khởi động lại Backend sau khi đổi `.env`. Backend chỉ nhận JSON intent/ID
+từ Ollama rồi tự kiểm tra Home, mục tiêu và trạng thái; khi Ollama lỗi thì
+không gửi command đoán.
+
+`POST /api/voice/command` dùng session Web. Endpoint robot
+`POST /api/voice/xiaozhi` dùng `XIAOZHI_HOME_ID` và token riêng, hiện giữ bộ
+phân tích quy tắc do robot có timeout HTTP 25 giây. TTS là chức năng của
+trình duyệt, không phải Ollama; thiếu giọng Việt thì trang không đọc bằng
+giọng Anh. Xem [VOICE_INTEGRATION.md](../docs/VOICE_INTEGRATION.md).
+
 ## Lỗi thường gặp
 
 | Vấn đề | Xử lý |
@@ -187,6 +250,8 @@ API ban đầu trả PENDING. Backend gửi command, chờ State, retry tối đ
 | MQTT broker unavailable | Kiểm tra Docker EMQX, MQTT_URL và port 1883. |
 | Command TIMEOUT | Kiểm tra Device online, topic/payload và State command_id. |
 | Prisma connection error | Kiểm tra Docker PostgreSQL, DATABASE_URL, migration. |
+| ESP MQTT connected nhưng Dashboard offline | Kiểm tra timestamp heartbeat; `1970` bị bỏ qua cho tới khi SNTP sync. |
+| Voice nhận lệnh nhưng không đọc | Kiểm tra giọng TTS `vi-VN` của trình duyệt/hệ điều hành bằng nút Thử giọng. |
 
 ## Dừng môi trường local
 

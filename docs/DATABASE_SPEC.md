@@ -275,6 +275,22 @@ Example schedule:
 }
 ```
 
+Sensor condition schedule:
+
+```json
+{
+  "type": "soil_moisture_below",
+  "sensor_device_id": "esp32-c3-garden-sensor",
+  "capability": "soil_moisture",
+  "threshold": 35,
+  "cooldown_minutes": 60
+}
+```
+
+`automation_logs` is also used as the cooldown/audit record. No new physical
+table is needed: condition metadata remains in JSONB so future AI-generated
+rules use the same validated model.
+
 Example action:
 
 ``` json
@@ -287,6 +303,10 @@ Example action:
   }
 }
 ```
+
+An ON action can optionally contain `offAfterMinutes` (1–1440), or, for a
+daily rule, `offTime` in `HH:mm`. Soil-moisture rules must target a relay whose
+`device_capabilities.config.kind` is `pump`.
 
 ### automation_logs
 

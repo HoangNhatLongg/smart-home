@@ -15,7 +15,7 @@ Hệ thống hỗ trợ: - Giám sát nhiệt độ và độ ẩm. - Điều kh
 Theo dõi Online/Offline. - Schedule automation. - Generic Node. -
 Capability Registry. - Desired/Applied Configuration. - Firmware version
 management và OTA do người dùng chủ động kích hoạt. - Voice AI trên Web
-Dashboard, phạm vi hiện tại chỉ điều khiển thiết bị. - ESP32-S3 Xiaozhi
+Dashboard để điều khiển thiết bị và hỏi số đo môi trường mới nhất. - ESP32-S3 Xiaozhi
 làm voice interface bổ sung. - Authentication Login/Logout. - Phân quyền
 ở mức Home.
 
@@ -108,6 +108,14 @@ Hệ thống lưu: - Current state. - State history.
 Backend chỉ xác nhận một command điều khiển thành công khi nhận được
 State phù hợp từ Device.
 
+### 8a. Availability freshness
+
+Backend resets previously online Devices to offline at startup, then accepts
+online status only from a fresh availability heartbeat or another live MQTT
+signal. An online Device whose `last_seen_at` exceeds the configured timeout
+is marked offline. This avoids stale retained MQTT availability after a Backend
+restart; ESP publishes a retained online heartbeat every 30 seconds by default.
+
 Việc MQTT Broker nhận được command không đồng nghĩa Device đã thực hiện
 thành công.
 
@@ -150,12 +158,19 @@ Ví dụ:
 
 ## 11. Automation
 
-Automation là schedule-based và được thực hiện bởi Backend Scheduler.
+Automation được thực hiện bởi Backend Scheduler và luôn gọi cùng Command
+Service với Dashboard/Voice AI; Automation không được publish MQTT trực tiếp.
 
 Ví dụ: - 18:00 mỗi ngày -\> Relay 1 ON. - 22:30 mỗi ngày -\> Relay 1
 OFF.
 
-ESP32 không tự làm Scheduler trong MVP.
+Ngoài lịch `daily` + `HH:mm`, hệ thống hỗ trợ rule điều kiện độ ẩm đất thấp để
+tưới tự động. Rule này dùng telemetry `soil_moisture` gần nhất của Device cảm
+biến, điều khiển một relay đã chọn (thường là pump), và có cooldown để tránh
+bật lặp lại theo từng mẫu telemetry. Rule có thể bật relay/bơm rồi tắt sau một
+khoảng phút đã đặt; daily rule có thể có giờ tắt riêng. Tưới theo cảm biến chỉ
+cho phép relay được gắn metadata loại `pump`, để tách biệt với đèn/quạt. ESP32
+không tự làm Scheduler trong MVP.
 
 ## 12. OTA
 
@@ -172,9 +187,11 @@ Không yêu cầu rollback trong MVP.
 
 Web Dashboard có Voice AI.
 
-Phạm vi H1: - Chỉ `CONTROL_DEVICE`. - AI chuyển ngôn ngữ tự nhiên thành
-structured intent/action. - Backend xác thực và thực thi. - AI không
-được trực tiếp publish MQTT.
+Phạm vi H1: - `CONTROL_DEVICE` cho relay đã cấu hình. - `QUERY_ENVIRONMENT`
+cho nhiệt độ/độ ẩm của một phòng. - Backend phân giải câu nói thành
+intent/action, kiểm tra quyền Home và thực thi. - AI không được trực tiếp
+publish MQTT. Số đo quá 5 phút phải được báo là cũ, không được trình bày
+như giá trị hiện tại.
 
 Luồng:
 
@@ -198,6 +215,9 @@ ESP32-S3/Xiaozhi là voice interface bổ sung.
 
 Xiaozhi phải sử dụng cùng command/business layer với Dashboard Voice,
 không bypass Backend.
+Xiaozhi dùng MCP tool gọi REST voice endpoint của Backend bằng robot token
+riêng, gắn với đúng một Home. Token không phải tài khoản người dùng và không
+được gửi qua MQTT. Web tiếp tục dùng session cookie của người dùng.
 
 ## 15. Hardware Deployment
 

@@ -155,5 +155,10 @@ esp_err_t sm_app_start(void)
         ESP_LOGE(TAG, "Khởi động telemetry thất bại: %s", esp_err_to_name(err));
     }
 
+    err = sm_availability_start();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Khởi động availability heartbeat thất bại: %s", esp_err_to_name(err));
+    }
+
     return ESP_OK;
 }

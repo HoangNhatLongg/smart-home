@@ -101,6 +101,12 @@
   VOICE-03   Device executes         State received
   VOICE-04   No State                AI does not claim success
   VOICE-05   Unauthorized Home       Command rejected
+  VOICE-06   Ask room temperature    Recent room telemetry returned
+  VOICE-07   Ask room humidity       Recent room telemetry returned
+  VOICE-08   Stale telemetry         No current value claimed
+  VOICE-09   Ambiguous room/relay    Clarification, no command
+  VOICE-10   Invalid robot token     401, no command
+  VOICE-11   Robot control           State confirmed before success reply
 
 ## 11. Minimum acceptance flow
 

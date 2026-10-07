@@ -12,9 +12,9 @@ thì nên mở file nào.
 
 ## 1. Firmware này làm gì
 
-Một binary duy nhất chạy được cho **mọi node phần cứng** của dự án: node có DHT11 + 1 relay,
-node có DHT11 và không relay, node dự phòng không cảm biến. Khác biệt giữa các node chỉ nằm ở
-cấu hình `menuconfig`, **không** nằm trong code.
+Một binary Generic Node chạy được cho nhiều cấu hình phần cứng: DHT11, tối đa
+8 relay, cảm biến độ ẩm đất và PIR. Khác biệt giữa các node nằm ở cấu hình
+NVS/Dashboard; `menuconfig` chỉ cung cấp giá trị mặc định lúc chưa provision.
 
 | Node giao tiếp với Backend qua EMQX:
 
@@ -50,9 +50,11 @@ idf.py build
 idf.py -p COMx flash monitor
 ```
 
-Trước khi flash, **bắt buộc** đặt `NODE_DEVICE_ID`, `NODE_ROOM_ID`, `NODE_MQTT_BROKER_URI`.
-`NODE_WIFI_SSID`/`NODE_WIFI_PASSWORD` có thể **để trống** — khi đó node mở AP cấu hình để
-điện thoại nhập Wi-Fi (mục 4b). `sdkconfig` chứa secret nên đã git-ignore.
+Với luồng ghép nối hiện tại, **không bắt buộc** đặt Home/Room/MQTT URI trước
+khi flash. ESP tự sinh `device_id` từ MAC; trang SoftAP nhận Wi-Fi, Backend URL
+và GPIO, còn Dashboard chọn Home/Room/MQTT URI sau khi nhập pairing code.
+`menuconfig` dùng khi muốn đặt mặc định/khôi phục. `sdkconfig` chứa secret nên
+đã git-ignore.
 
 ---
 
@@ -125,8 +127,10 @@ Sau khi có IP và MQTT kết nối, `on_mqtt_event()` phát theo thứ tự:
 availability (online, retained)  →  capability (retained)  →  state (retained)
 ```
 
-Đây là đúng tinh thần "Availability + Wi-Fi MQTT phải có trước, rồi tới telemetry, command,
-state, capability" của yêu cầu dự án: Backend phải thấy node online trước khi nhận capability.
+Thứ tự publish không bảo đảm Backend hiển thị online ngay: trước khi SNTP
+đồng bộ, availability có thể mang timestamp `1970-01-01` và Backend cố ý bỏ
+qua. Heartbeat định kỳ (mặc định 30 giây) sau khi đồng bộ giờ mới có timestamp
+hợp lệ. Đây là điểm cần kiểm tra khi MQTT đã kết nối nhưng Dashboard vẫn offline.
 
 ### 4b. Nhánh provisioning (cấu hình thiết bị từ điện thoại)
 

@@ -9,7 +9,7 @@ export default function VoicePage() {
     <div className="space-y-5">
       <PageHeader
         title="Giọng nói"
-        description="Nói hoặc gõ lệnh để bật/tắt thiết bị. Nhận dạng giọng nói chạy ngay trong trình duyệt của bạn."
+        description="Nói hoặc gõ lệnh bật/tắt thiết bị, hỏi nhiệt độ và độ ẩm. Trình duyệt nhận giọng nói và đọc câu trả lời bằng tiếng Việt khi có giọng đọc phù hợp."
       />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">

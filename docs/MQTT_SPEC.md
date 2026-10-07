@@ -89,6 +89,11 @@ When connected, ESP32 publishes retained:
 }
 ```
 
+While connected, ESP32 republishes the same retained `online` payload as a
+heartbeat (default every 30 seconds). Backend must treat a retained `online`
+payload as valid only when its timestamp is recent; this prevents an old
+retained record from marking a powered-off node online after Backend restarts.
+
 ## 6. Telemetry
 
 ESP32 -\> Backend:
